@@ -22,21 +22,21 @@ The code reads in TC trajectories defined by a TC tracker, such as that defined 
 * Zarzycki and Jablonowski, JAMES, 2014
 * Ullrich and Zarzycki, GMD, 2017
 * Zarzycki and Ullrich, GRL, 2017
-* ...among others.
+* ... among many others.
 
-Given those TC trajectories, it searches gridded data matching the period of analysis. During the times a TC trajectory exists, it calculates Vut, Vlt, and B from Hart et al., 2003
+Given those TC trajectories, it searches gridded data matching the period of analysis. During the times a TC trajectory exists, it calculates Vut, Vlt, and B from Hart et al., (2003).
 
-Following the termination of a warm-core TC trajectory, the code continues following features based on sea level pressure minima at subsequent 6-hourly intervals until the cyclone dissipates or leaves the domain.
+Following the termination of a defined warm-core TC trajectory, the code continues following features based on sea level pressure minima at subsequent time slices until the cyclone dissipates or leaves the domain.
 
 ## General procedure
 
 1. Generate TC tracks using TC software
 2. Post-process TC tracks into correct format
-3. Run reanalysis\_et\_cyclone\_traj.ncl to extract extended tracks with ET variables (B, Vut, Vlt)
-  * Concatenate ET trajectories output from reanalysis\_et\_cyclone\_traj.ncl
-4. (optional, but recommended) run et_avg.nc
-5. Process ET climatological statistics
-
+3. Modify `reanalysis_et_cyclone_traj.ncl` and/or gridded netCDF files to allow for variables to be read by `reanalysis_et_cyclone_traj.ncl` correctly.
+4. Run `reanalysis_et_cyclone_traj.ncl` to extract extended tracks with CPS variables (B, VUT, VLT)
+  * Concatenate ET trajectories output from `reanalysis_et_cyclone_traj.ncl`
+5. (optional, but highly recommended) run `et_avg.ncl` to "smooth" CPS parameters with time.
+6. Process/plot ET climatological statistics.
 
 ## Detailed procedure
 
@@ -44,7 +44,7 @@ Following the termination of a warm-core TC trajectory, the code continues follo
 *** Functions associated with ET tracker are in ./functions
 *** Plotting scripts (if available) are in ./plotting-scripts
 
-A TC tracker (such as TempestExtremes or that used by GFDL) needs to be used to initialize TC tracks. This file will be shorthanded ${TCTRAJ} in this README.
+A TC tracker (such as TempestExtremes or that used by GFDL) needs to be used to generate/initialize TC tracks. This file will be shorthanded `${TCTRAJ}` in this README.
 
 Tracks *must* be post-processed to be in this text format
 
