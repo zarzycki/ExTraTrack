@@ -4,9 +4,7 @@
 
 Colin M. Zarzycki and Diana R. Thatcher.
 
-NOTE: This is pre-release code. It mainly consists of NCL / Bash scripting. It was used to track the extratropical transition of tropical cyclones in high-resolution CESM data as well as various reanalysis productions. As such, it has not been generalized to other datasets/languages. This may be an area of future work, but as of now the code is not being actively developed (save for a few cleanings, etc. when necessitated by collaborators using the code).
-
-Tropical cyclone extratropical transition tracker, v0.1
+NOTE: This is pre-release code. It mainly consists of NCL / Bash scripting. It was used to track the extratropical transition of tropical cyclones in high-resolution CESM data as well as various reanalysis productions. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but since I am no longer funded on this project, pretty far down the list. This may be an area of future work, but as of now the code is not being actively developed (save for a few cleanings, etc. when necessitated by collaborators using the code). Please e-mail me if you are interested in adapting this code for use with your products!
 
 WARNING: This code has not been extensively verified beyond the particular projects noted below. If you find any bugs or inconsistencies, please contact zarzycki@ucar.edu.
 
@@ -14,16 +12,17 @@ This code is used in the paper:
 Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical cyclone extratropical transition detection in high-resolution reanalysis and climate model data, J. Adv. Model. Earth Syst., 9, 130–148, doi:10.1002/2016MS000775.
 
 It applies cyclone phase space as defined by:
-Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal Asymmetry. Mon. Wea. Rev., 131, 585–616, https://doi.org/10.1175/1520-0493(2003)131<0585:ACPSDF>2.0.CO;2 
+Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal Asymmetry. Mon. Wea. Rev., 131, 585–616, doi:10.1175/1520-0493(2003)131<0585:ACPSDF>2.0.CO;2 
 
-To use this code, you *must* have 6-hourly gridded reanalysis or climate model data.
+To use this code, you *must* have gridded reanalysis or climate model data that contains variables described below.
 
-A sample of gridded data + TC trajectories to start with can be downloaded from: http://www.cgd.ucar.edu/staff/zarzycki/files/ERA-sample-ETC-tracker-data.gz
+**A sample of gridded data + TC trajectories to start with can be downloaded from:** http://www.cgd.ucar.edu/staff/zarzycki/files/ERA-sample-ETC-tracker-data.gz
 
 The code reads in TC trajectories defined by a TC tracker, such as that defined in:
-Zarzycki and Jablonowski, JAMES, 2014
-Ullrich and Zarzycki, GMD, 2017
-Zarzycki and Ullrich, GRL, 2017
+* Zarzycki and Jablonowski, JAMES, 2014
+* Ullrich and Zarzycki, GMD, 2017
+* Zarzycki and Ullrich, GRL, 2017
+* ...among others.
 
 Given those TC trajectories, it searches gridded data matching the period of analysis. During the times a TC trajectory exists, it calculates Vut, Vlt, and B from Hart et al., 2003
 
@@ -31,12 +30,12 @@ Following the termination of a warm-core TC trajectory, the code continues follo
 
 ## General procedure
 
-1.) Generate TC tracks using TC software
-2.) Post-process TC tracks into correct format
-3.) Run reanalysis\_et\_cyclone\_traj.ncl to extract extended tracks with ET variables (B, Vut, Vlt)
-3a.) Concatenate ET trajectories output from reanalysis\_et\_cyclone\_traj.ncl
-4.) (optional, but recommended) run et_avg.nc
-5.) Process ET climatological statistics
+1. Generate TC tracks using TC software
+2. Post-process TC tracks into correct format
+3. Run reanalysis\_et\_cyclone\_traj.ncl to extract extended tracks with ET variables (B, Vut, Vlt)
+  * Concatenate ET trajectories output from reanalysis\_et\_cyclone\_traj.ncl
+4. (optional, but recommended) run et_avg.nc
+5. Process ET climatological statistics
 
 
 ## Detailed procedure
@@ -49,7 +48,8 @@ A TC tracker (such as TempestExtremes or that used by GFDL) needs to be used to 
 
 Tracks *must* be post-processed to be in this text format
 
-```start 12 1980 5 1 0 0000
+```
+start 12 1980 5 1 0 0000
 260.156342 6.666654 10.399 1005.583 1980 5 1 0
 260.156342 7.368407 12.425 1007.042 1980 5 1 6
 259.453217 8.070160 12.061 1005.444 1980 5 1 12
@@ -67,17 +67,25 @@ start 32 1980 8 3 18 0001
 300.937592 12.982431 11.796 1006.424 1980 8 4 0
 299.531342 12.982431 12.673 1005.519 1980 8 4 6
 297.421967 14.385937 15.288 1006.124 1980 8 4 12
-...```
+...
+```
 
 each trajectory consists of a header line...
-```start NUMOBS STYYYY STMM STDD STHH STORMID```
+```
+start NUMOBS STYYYY STMM STDD STHH STORMID
+```
 
 each line of the trajectory (there should be NOBS of them) are...
-```LON LAT BOT_WINDMAG PSL YYYY MM DD HH```
+```
+LON LAT BOT_WINDMAG PSL YYYY MM DD HH
+```
 
 where...
-```PSL          ; minimum pressure value (Pa)
-BOT_WINDMAG  ; maximum wind speed at 10m or in lowest model level (m/s)```
+```
+PSL          ; minimum pressure value (Pa)
+BOT_WINDMAG  ; maximum wind speed at 10m or in lowest model level (m/s)
+```
+
 
 
 `${TCTRAJ}` is usually placed in `./text_files/` and is used by `reanalysis_et_cyclone_traj.ncl` and `et_yearly_clim.ncl`
@@ -88,13 +96,12 @@ The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 where `reanalysis_et_cyclone_traj.ncl` points to `${TCTRAJ}`. Other user settings are described in the script. `year_min` and `year_max` can be used to parallelize the code (i.e., for a 20 year dataset) you could spawn 20 single-core jobs. Most helpful for high-resolution data with many TCs.
 
 
-REQUIRED DATA:
-Currently, variables/names needed by `reanalysis_et_cyclone_traj.ncl` are:
-PSL (sea level pressure)
-UBOT (lowest model level U wind)
-VBOT (lowest model level V wind)
-Z @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 
-    875, 900, 925, 950, 975, 1000 mb (geopotential height).
+REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.ncl` are:
+1. PSL (sea level pressure)
+2. UBOT (lowest model level U wind)
+3. VBOT (lowest model level V wind)
+4. Z (geopotential height) @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 
+    875, 900, 925, 950, 975, 1000 mb.
 
 PSL, UBOT, and VBOT are 2-D variables at each time.
 Z is 3-D, with the vertical dimension named nlev.
@@ -106,32 +113,39 @@ See block of text in `reanalysis_et_cyclone_traj.ncl` to modify data ingestion f
 `reanalysis_et_cyclone_traj.ncl` will output new, storm-by-storm trajectory files in `./text_files/`
 
 Each file will look like...
-```start   051  1980      08    03    18    001
+```
+start   051  1980      08    03    18    001
    -57.66   12.98   1006.68   14.6   -999.00   -999.00   -999.00   -999.00   -999.00   1980   8   3  18
    -59.06   12.98   1006.42   11.8    152.38    270.00     -2.41    -11.16     44.55   1980   8   4   0
    -60.47   12.98   1005.52   12.7    152.38    270.00     -2.51     21.88     45.18   1980   8   4   6
-...```
+...
+```
 
 header format:
-```start NUMOBS STYYYY STMM STDD STHH STORMID```
+```
+start NUMOBS STYYYY STMM STDD STHH STORMID
+```
 
 each line (NOBS of them) will be...
-```LON LAT PSL BOT_WINDMAG DIST ANG B VLT VUT YYYY MM DD HH```
+```
+LON LAT PSL BOT_WINDMAG DIST ANG B VLT VUT YYYY MM DD HH
+```
 
 where...
 
-```PSL          ; minimum pressure value (Pa)
+```
+PSL          ; minimum pressure value (Pa)
 BOT_WINDMAG  ; maximum wind speed at 10m or in lowest model level (m/s)
 DIST         ; distance traveled between each time step (m)
 ANG          ; angle of storm travel (deg)
 B            ; B parameter (Hart 2003)
 VLT          ; lower troposphere thermal wind (Hart 2003)
-VUT          ; upper troposphere thermal wind (Hart 2003)```
+VUT          ; upper troposphere thermal wind (Hart 2003)
+```
 
 
-In `./text_files/` the individual `tmp_XXX_NNN.txt` files need to be concatenated into a singlular
-traj file
-```$> cat tmp_era_* > ${ETCTRAJ_ORIG}```
+In `./text_files/` the individual `tmp_XXX_NNN.txt` files need to be concatenated into a singlular traj file
+`$> cat tmp_era_* > ${ETCTRAJ_ORIG}`
 
 You can then run 
 ```$> ncl et_avg_text.ncl```
@@ -148,42 +162,54 @@ Here we assume ERA-interim 1980-2002 (as in Zarzycki et al., 2017).
 *********************************************
 `monthly_era_1980_2002.txt`
 
-```1980  01   00   00   00   00   00   00```
+```
+1980  01   00   00   00   00   00   00
+```
 
+```
 YYYY  MM  MATL MTC  MWC  MCC  MET  MNO
+```
 
-MATL number of atlantic basin storms
-MTC  number of storms that remained tropical
-MWC  number of storms that dissipated as warm cores
-MCC  number of storms that dissipated as cold cores
-MET  number of storms that complete transition
-MNO  number of storms that complete partial transition
+* MATL number of atlantic basin storms
+* MTC  number of storms that remained tropical
+* MWC  number of storms that dissipated as warm cores
+* MCC  number of storms that dissipated as cold cores
+* MET  number of storms that complete transition
+* MNO  number of storms that complete partial transition
 
 *********************************************
 `yearly_era_1980_2002.txt`
 
-```1980   02   02   00   00   00   00```
+```
+1980   02   02   00   00   00   00
+```
 
-`YYYY   MATL MTC  MWC  MCC  MET  MNO`
+```
+YYYY   MATL MTC  MWC  MCC  MET  MNO
+````
 
-MATL number of atlantic basin storms
-MTC  number of storms that remained tropical
-MWC  number of storms that dissipated as warm cores
-MCC  number of storms that dissipated as cold cores
-MET  number of storms that complete transition
-MNO  number of storms that complete partial transition
+* MATL number of atlantic basin storms
+* MTC  number of storms that remained tropical
+* MWC  number of storms that dissipated as warm cores
+* MCC  number of storms that dissipated as cold cores
+* MET  number of storms that complete transition
+* MNO  number of storms that complete partial transition
 
 *********************************************
 `etpath_yearly_era_1980_2002.txt`
 
-`1980   00   00   00`
+```
+1980   00   00   00
+```
 
+```
 YYYY  PATH1 PATH2 PATH3
+```
 
-PATH1 - storms undergoing Type I ET
-PATH2 - storms undergoing Type II ET
-PATH3 - storms undergoing Type III ET
-(see Zarzycki et al., 2017 for type definitions)
+* PATH1 - storms undergoing Type I ET
+* PATH2 - storms undergoing Type II ET
+* PATH3 - storms undergoing Type III ET
+* (see Zarzycki et al., 2017 for type definitions)
 
 *********************************************
 `storms_era.txt`
@@ -193,27 +219,35 @@ PATH3 - storms undergoing Type III ET
 *********************************************
 `life_era.txt`
 
-```storm    0005   028    1981  08  19  00
-         0005   005    1981  08  20  12    1981  08  21  18```
+```
+storm    0005   028    1981  08  19  00
+         0005   005    1981  08  20  12    1981  08  21  18
+```
 
+```
 storm   STORMID   TOTDUR  TCSTARTYYYYMMDDHH
          STORMID ETDUR ETSTARTYYYMMMDDHH  ETENDYYYMMMDDHH
+```
 
-TOTDUR - total length of TC + ETC tracked
-ETDUR - time between ET onset and ET completion
-TCSTARTYYYYMMDDHH - initial time of TC tracking
-ETSTARTYYYMMMDDHH - time of ET onset
-ETENDYYYMMMDDHH - time of ET completion
+* TOTDUR - total length of TC + ETC tracked
+* ETDUR - time between ET onset and ET completion
+* TCSTARTYYYYMMDDHH - initial time of TC tracking
+* ETSTARTYYYMMMDDHH - time of ET onset
+* ETENDYYYMMMDDHH - time of ET completion
 
-TOTDUR/ETDUR in "timesteps" (number of datapoints, so 5 for 6-hourly pts = 30 hours)
+Note: TOTDUR/ETDUR in "timesteps" (number of datapoints, so 5 for 6-hourly pts = 30 hours)
 
 *********************************************
 `etdetails_era.txt`
 
-``` 0005   005    1  1002.36  999.80   1981  08  20  12    1981  08  21  18```
+```
+ 0005   005    1  1002.36  999.80   1981  08  20  12    1981  08  21  18
+```
 
+```
 STORMID ETDUR PATH SLPST   SLPEN     ETSTARTYYYMMMDDHH   ETENDYYYMMMDDHH
+```
 
-PATH is path type defined in Zarzycki et al., 2017 
-SLPST - SLP at start of transition
-SLPEN - SLP at end of transition
+* PATH is path type defined in Zarzycki et al., 2017 
+* SLPST - SLP at start of transition
+* SLPEN - SLP at end of transition
