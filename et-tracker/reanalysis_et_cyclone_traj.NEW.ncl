@@ -38,25 +38,25 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1984
-  year_max = 1984
+  year_min = 2009
+  year_max = 2014
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
 end if
 
-do_debug=False
+do_debug=True
 
 ; recommended month_min = 1 and month_max = 12 for
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 8
-month_max = 11
+month_min = 1
+month_max = 12
 
 ; Final year of data, only used if a storm starts
 ; in Dec. and continues into the next year 
-data_year_max = 2002
+data_year_max = 2014
 
 ; Here you can specify the basin that needs to be loaded. negative means all basins, 
 ; 1 = NATL, 2 = EPAC, 3 = CPAC, 4 = WPAC...
@@ -73,7 +73,7 @@ lonmin=-180.0
 lonmax=180.0
   
 ; resolution
-resol = 0.50                 ; approximate resolution (deg) of the data (does not need to be exact).
+resol = 0.25                 ; approximate resolution (deg) of the data (does not need to be exact).
 hrintvl=6.0             ; hour interval of data (usually 6 hours if matching ibtracs/WMO)
 del_t = hrintvl*60*60   ; time interval in seconds )
 
@@ -268,9 +268,18 @@ do jtc = 0,ntc-1
 
   end if
 
+  STARTTIME=stringtointeger(systemfunc("date -u +%s"))
+
   ;========================================================
   ; Find start time
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="finding start time"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+  
 
   ; convert longitude (0 to 360) to (-180 to 180)
   tsub(:,1) = where(tsub(:,1) .gt. 180, tsub(:,1) - 360, tsub(:,1))
@@ -301,9 +310,21 @@ do jtc = 0,ntc-1
   
   delete(end_date)
 
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
+
   ;========================================================
   ; Load input files
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="loading files into memory"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
 
   ; find previous month for selecting h2 files and convert to strings
   s_mon_prev = sprinti("%0.2i",s_month(itc)-1)
@@ -322,10 +343,21 @@ do jtc = 0,ntc-1
   end if
   
   delete([/e_year,e_mon_str,s_mon_prev,s_mon_str/])
-  
+
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
   ;========================================================
   ; Load Z and interpolate to pressure levels
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="load Z and interpolate to pressure levels"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
 
   ; new pressure levels  
 	pnew = (/300.,350.,400.,450.,500.,550.,600., \
@@ -357,12 +389,21 @@ do jtc = 0,ntc-1
 	Z = Znew(:,:,:,{lonmin-eps:lonmax}) 
 	delete([/Znew/])
 
-
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
 
   ;========================================================
   ; Load data and calculate UMAG
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="Load data and calculate UMAG"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
 
 	; load wind speeds at lowermost model level
 	UBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
@@ -381,7 +422,10 @@ do jtc = 0,ntc-1
 
 	delete([/UBOT,VBOT/])
 
-
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
   
 
           
@@ -434,7 +478,10 @@ end if
   Z_thick&lat = lat
   Z_thick&lon = lon
 
-
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
 
 
@@ -543,7 +590,7 @@ Vut(i) = rtn_tmp(1)
   ; call function to create et plot
   ;========================================================
 
-  plot_track = True
+  plot_track = False
   if (plot_track) then  
     do i = 0, nrows-1
       et_track_plot(type,itc,i,lat,lon,date(i),minP(i),minPlat(i),minPlon(i), \
@@ -589,16 +636,24 @@ if (do_debug) then
   print("Starting masking operation")
   wcStrtSub = systemfunc("date")
 end if
- 
-      do jlat = 0,nlat-1
-      do jlon = 0,nlon-1
-        d = gc_latlon(minPlat(i-1),minPlon(i-1),lat(jlat),lon(jlon),2,4)  ; km
-        if (d .gt. rad_tmp) then
-          PSL_tmp(jlat,jlon) = PSL_tmp@_FillValue  ; set points outside radius to missing
-          UBOTMAG_tmp(jlat,jlon) = UBOTMAG_tmp@_FillValue
-        end if
-      end do
-      end do
+
+      ;do jlat = 0,nlat-1
+      ;do jlon = 0,nlon-1
+      ;  d = gc_latlon(minPlat(i-1),minPlon(i-1),lat(jlat),lon(jlon),2,4)  ; km
+      ;  if (d .gt. rad_tmp) then
+      ;    PSL_tmp(jlat,jlon) = PSL_tmp@_FillValue  ; set points outside radius to missing
+      ;    UBOTMAG_tmp(jlat,jlon) = UBOTMAG_tmp@_FillValue
+      ;  end if
+      ;end do
+      ;end do
+lat2d=conform_dims((/nlat,nlon/),lat,0)
+lon2d=conform_dims((/nlat,nlon/),lon,1)
+d = gc_latlon(minPlat(i-1),minPlon(i-1),lat2d,lon2d,2,4)  ; km
+PSL_tmp=where(d.gt.rad_tmp,PSL_tmp@_FillValue,PSL_tmp)
+UBOTMAG_tmp=where(d.gt.rad_tmp,UBOTMAG_tmp@_FillValue,UBOTMAG_tmp)
+delete(d)
+delete(lat2d)
+delete(lon2d)
 
 if (do_debug) then
   print("...ending masking operation")
@@ -608,7 +663,8 @@ end if
       ; find max wind speed
       V_tmp = max(UBOTMAG_tmp)
 
-      delete([/d,rad_tmp,jlat,jlon,UBOTMAG_tmp/])
+      ;delete([/d,rad_tmp,jlat,jlon,UBOTMAG_tmp/])
+      delete([/rad_tmp,UBOTMAG_tmp/])
 
       ;========================================================
       ; Find all local pressure minimums
@@ -714,10 +770,20 @@ end if
           ; have the exact same minimum pressure (yes, this actually happens)
           ; choose minimum pressure with travel distance/speed most similar to previous time step
           if (dimsizes(minPind) .gt. 1) then
-            delete(minPind)
             dist_diff = abs(dist(i-1) - dist_tmp)
-            minPind = ind(minP_tmp .eq. min(minP_tmp(locmin_true)) .and. \
-                          dist_diff .eq. min(dist_diff(locmin_true)))
+            minPindTmp=-1
+            minDiffTmp=99999.9
+            do ii = 0,dimsizes(minPind)-1
+              print(dist_diff(minPind(ii))+" "+minDiffTmp)
+              if (dist_diff(minPind(ii)) .lt. minDiffTmp) then
+                minDiffTmp=dist_diff(minPind(ii))
+                print("updating minPindTmp from "+minPindTmp+" "+minPind(ii))
+                minPindTmp=minPind(ii)
+              end if
+            end do
+            delete([/minDiffTmp,dist_diff,ii,minPind/])
+            minPind=minPindTmp
+            delete(minPindTmp)
           end if
   
           minPlat(i) = (/locmin_lat(minPind)/)   ; latitude of minimum pressure
@@ -857,6 +923,10 @@ end if
     "   %4.1f   %7.2f   %7.2f" + \
     "   %7.2f   %7.2f   %7.2f" + \
     "   %4.0f  %2.0f  %2.0f  %2.0f")
+
+  ENDTIME=stringtointeger(systemfunc("date -u +%s"))
+  TOTTIME=ENDTIME-STARTTIME
+  asciiwrite ("./text_files/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
   
   delete([/i,itc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
 

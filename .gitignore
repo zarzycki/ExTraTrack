@@ -1,3 +1,5 @@
+nohup.out
+slurm*
 trajectories.txt*
 *.gif
 *.pdf
