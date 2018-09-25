@@ -16,8 +16,8 @@ print(" ")
 
 ; choose data set to use
   type = "era"   ; uni, var, or rea
-  year_min = 1980
-  year_max = 2002
+  year_min = 1984
+  year_max = 2014
 
 ; et phase space criteria  
   Blim = 15.   ; limit for B defining transition (typically 10)
@@ -27,7 +27,7 @@ print(" ")
   numconsec = 3       ; number of consecutive B/VLT flips to consider ET final
 
 ; TC trajectory file
-  tfile = "./text_files/traj_tc_era"
+  tfile = "./tc-tracking/new.txt"
 
 ; ETC trajectory file
   etfile = "./text_files/traj_et_era_avg"

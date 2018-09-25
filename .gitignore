@@ -1,3 +1,4 @@
+colin-plotting/
 *.TIME
 nohup.out
 slurm*

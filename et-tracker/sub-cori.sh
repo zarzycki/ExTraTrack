@@ -11,10 +11,10 @@
 #>#PBS -l select=1:ncpus=36:mem=109GB
 ################################################################
 #SBATCH -N 1                #Use 2 nodes
-#SBATCH -t 03:57:00         #Set 30 minute time limit
+#SBATCH -t 02:57:00         #Set 30 minute time limit
 #SBATCH -q premium          #Use the regular QOS
 #SBATCH -L SCRATCH          #Job requires $SCRATCH file system
-#SBATCH -C knl,quad,cache   #Use KNL nodes in quad cache format (default, recommended)
+#SBATCH -C haswell   #Use KNL nodes in quad cache format (default, recommended)
 ################################################################
 
 starttime=$(date -u +"%s")
@@ -22,7 +22,7 @@ starttime=$(date -u +"%s")
 module load parallel
 module load ncl 
 
-NUMCORES=8
+NUMCORES=16
 TIMESTAMP=`date +%s%N`
 COMMANDFILE=commands.${TIMESTAMP}.txt
 

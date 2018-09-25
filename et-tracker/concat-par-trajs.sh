@@ -7,5 +7,5 @@
 type="era"
 cd ./text_files
 cat tmp_${type}_*.txt > traj_et_${type}_orig
-rm tmp_${type}_*.txt
+#rm tmp_${type}_*.txt
 

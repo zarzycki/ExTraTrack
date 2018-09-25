@@ -29,23 +29,19 @@ begin
     Zl = Z_thick({(minPlat-qq_ddeg):(minPlat+qq_ddeg)},{(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
     Zr = Zl
     
-    ; find bearing between minimum pressure and each lat/lon pair
     do jlat = 0,qq_nlat-1
       do jlon = 0,qq_nlon-1
       thisLat=qq_lat(jlat)
       thisLon=qq_lon(jlon)
     
-      ; only update angles if storm has moved at least 10 km
-      if (dist .ge. 1 .or. any(ismissing(qq_ang_all(jlat,jlon)))) then
-        qq_ang_all(jlat,jlon) = bearing(minPlat,minPlon,qq_lat(jlat),qq_lon(jlon))
-      end if
+      ; find bearing between minimum pressure and each lat/lon pair
+      qq_ang_all(jlat,jlon) = bearing(minPlat,minPlon,qq_lat(jlat),qq_lon(jlon))
 
       ; find 500 km radius for Z calculations	  
       d = gc_latlon(minPlat,minPlon,qq_lat(jlat),qq_lon(jlon),2,4)  ; km
       if (d .gt. critRad) then
         Zl(jlat,jlon) = Zl@_FillValue  ; set points outside radius to missing
         Zr(jlat,jlon) = Zr@_FillValue  ; set points outside radius to missing
-        ;qq_Z(:,jlat,jlon) = qq_Z@_FillValue
       end if 
     
       ; set values along great circle line to missing (neither left nor right)
@@ -113,6 +109,7 @@ function calc_VltVut(
   ang[1] : numeric,
   minPlat[1] : numeric,
   minPlon[1] : numeric,
+  indices[3] : numeric,
   logp[*] : numeric
   )
 local qq_Z, d, dZ, indtop, indmid, indbot, qq_lat, qq_lon, qq_nlat, qq_nlon, Vlt, Vut
@@ -120,9 +117,9 @@ local qq_Z, d, dZ, indtop, indmid, indbot, qq_lat, qq_lon, qq_nlat, qq_nlon, Vlt
 begin
 
 ; assign indices to be used later
-indtop = 0      ; top index for VTU
-indmid = 6      ; bottom index for VTU, top index for B, VTL
-indbot = 12     ; bottom index for B, VTL
+indtop = indices(0)      ; top index for VTU
+indmid = indices(1)     ; bottom index for VTU, top index for B, VTL
+indbot = indices(2)     ; bottom index for B, VTL
 
 qq_Z = Z(:,{(minPlat-qq_ddeg):(minPlat+qq_ddeg)},{(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
 

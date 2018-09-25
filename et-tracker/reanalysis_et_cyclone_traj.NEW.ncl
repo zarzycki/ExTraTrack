@@ -38,14 +38,14 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 2009
-  year_max = 2014
+  year_min = 1984
+  year_max = 1984
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
 end if
 
-do_debug=True
+do_debug=False
 
 ; recommended month_min = 1 and month_max = 12 for
 ; analyzing an entire year of data in final analysis.
@@ -359,15 +359,7 @@ if (do_debug) then
   wcStrtSub = systemfunc("date")
 end if
 
-  ; new pressure levels  
-	pnew = (/300.,350.,400.,450.,500.,550.,600., \
-			 650.,700.,750.,800.,850.,900./)  
-	logp = log(pnew*100.)   ; convert p from hPa to Pa and take log
-	  
-  ; assign indices to be used later
-	indtop = 0      ; top index for VTU
-	indmid = 6      ; bottom index for VTU, top index for B, VTL
-	indbot = 12     ; bottom index for B, VTL
+
 
 	; read in data for Z levels
 	input1 = addfiles(files1,"r")
@@ -377,17 +369,25 @@ end if
 	; read in data    
 	Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
 	nlev = dimsizes(Z3&lev)
-	Znew = Z3(:,0:nlev-2,:,:)
+
+  ; pressure levels
+  pnew = Z3&lev
+  logp = log(pnew*100.)   ; convert p from hPa to Pa and take log
+
+  ; assign indices to be used later
+	indtop = closest_val(300.,pnew)      ; top index for VTU
+	indmid = closest_val(600.,pnew)      ; bottom index for VTU, top index for B, VTL
+	indbot = closest_val(900.,pnew)      ; bottom index for B, VTL
+	print(indtop+" "+indmid+" "+indbot)
 	
 	; compute weights from latitudes  
 	deg2rad = 4.0*atan(1.0)/180.0
 	wgt = cos((Z3&lat)*deg2rad)
-  delete([/Z3/])
 
   ; flip longitude for geopotential height 
 	;Znew = lonFlip(Znew)
-	Z = Znew(:,:,:,{lonmin-eps:lonmax}) 
-	delete([/Znew/])
+	Z = Z3(:,:,:,{lonmin-eps:lonmax}) 
+  delete([/Z3/])
 
 if (do_debug) then
   print("...ending "+PRINTSTRING)
@@ -562,7 +562,7 @@ B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPl
 ; Compute thermal wind values (Vlt and Vut)
 ;========================================================
 
-rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),logp)
+rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp)
 Vlt(i) = rtn_tmp(0)
 Vut(i) = rtn_tmp(1)
 
@@ -578,9 +578,6 @@ Vut(i) = rtn_tmp(1)
         B(i),Vlt(i),Vut(i),"TC")
 
     end if
-
-
-  ;delete([/qq_Z,qq_lat,qq_lon,qq_nlat,qq_nlon,qq_ang_all,qq_wgt,qq_ddeg/])
 
   end do   ; end loop of already TC tracked stuff
 
@@ -824,7 +821,7 @@ B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPl
 ; Compute thermal wind values (Vlt and Vut)
 ;========================================================
 
-rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),logp)
+rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp)
 Vlt(i) = rtn_tmp(0)
 Vut(i) = rtn_tmp(1)
 
