@@ -8,9 +8,11 @@ function calc_B(
   dist[1] : numeric,
   ang[1] : numeric,
   minPlat[1] : numeric,
-  minPlon[1] : numeric
+  minPlon[1] : numeric,
+  opt[1] : numeric
   )
-local pi, deg2rad, qq_lat, qq_lon, qq_nlat, qq_nlon, qq_ang_all, qq_wgt, Zl, Zr, d, dist, ang
+local pi, deg2rad, qq_lat, qq_lon, qq_nlat, qq_nlon, qq_ang_all, qq_wgt, Zl, Zr, d, dist, ang, \
+  ndims, nlat, nlon
 
 begin
 
@@ -74,6 +76,50 @@ begin
     end do
   
     delete([/jlat,jlon/])
+
+    if (0 .eq. 1) then
+      print("... writing out B to tmp netCDF")
+      dtime_map = (/4,2,2,2/)
+      splitDate = str_split_by_length(tostring(opt@date),dtime_map)
+      yyyy=toint(splitDate(0))
+      mm=toint(splitDate(1))
+      dd=toint(splitDate(2))
+      hh=toint(splitDate(3))
+      units  = "days since 1900-01-01 00:00:00"
+      time   = cd_inv_calendar(yyyy,mm,dd,hh,0,0,units,0)
+
+      ndims=dimsizes(Zl)
+      nlat=ndims(0)
+      nlon=ndims(1)
+      Zltmp=new((/1,nlat,nlon/),typeof(Zl))
+      Zrtmp=new((/1,nlat,nlon/),typeof(Zr))
+
+      Zltmp!0="time"
+      Zltmp!1="lat"
+      Zltmp!2="lon"
+      Zltmp&time=time
+      Zltmp&lat=Zl&lat
+      Zltmp&lon=Zl&lon
+      copy_VarMeta(Zltmp,Zrtmp)
+
+      Zltmp(0,:,:)=Zl
+      Zrtmp(0,:,:)=Zr
+
+      outName="SAMP_"+tostring(opt@date)+"_"+tostring(opt@id)+".nc"
+      system("/bin/rm -f "+outName)
+      ncdf = addfile(outName ,"c")
+      fAtt               = True
+      fAtt@Conventions   = "None"
+      fAtt@creation_date = systemfunc ("date")
+      fileattdef( ncdf, fAtt )            ; copy file attributes
+      filedimdef(ncdf,"time",-1,True) 
+      ncdf->Zl=Zltmp
+      ncdf->Zr=Zrtmp
+
+      delete([/yyyy,mm,dd,hh,units,time,splitDate,dtime_map/])
+      delete([/ndims,nlat,nlon/])
+      delete([/outName,Zltmp,Zrtmp/])
+    end if
   
     ;========================================================
     ; Compute B value
@@ -110,7 +156,8 @@ function calc_VltVut(
   minPlat[1] : numeric,
   minPlon[1] : numeric,
   indices[3] : numeric,
-  logp[*] : numeric
+  logp[*] : numeric,
+  opt[1] : numeric
   )
 local qq_Z, d, dZ, indtop, indmid, indbot, qq_lat, qq_lon, qq_nlat, qq_nlon, Vlt, Vut
 
@@ -147,6 +194,55 @@ end do
 ; Compute thermal winds using Eqs. from Hart 2003 using linear regression
 Vlt = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
 Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
+
+;print(logp(indmid:indbot))
+;print(dZ(indmid:indbot))
+
+
+if (0 .eq. 1) then
+  print("... writing out Vlt/Vut to tmp netCDF")
+  dtime_map = (/4,2,2,2/)
+  splitDate = str_split_by_length(tostring(opt@date),dtime_map)
+  yyyy=toint(splitDate(0))
+  mm=toint(splitDate(1))
+  dd=toint(splitDate(2))
+  hh=toint(splitDate(3))
+  units  = "days since 1900-01-01 00:00:00"
+  time   = cd_inv_calendar(yyyy,mm,dd,hh,0,0,units,0)
+
+  ndims=dimsizes(Vlt)
+  nlat=ndims(0)
+  nlon=ndims(1)
+  Vlttmp=new((/1,nlat,nlon/),typeof(Vlt))
+  Vuttmp=new((/1,nlat,nlon/),typeof(Vut))
+
+  Vlttmp!0="time"
+  Vlttmp!1="lat"
+  Vlttmp!2="lon"
+  Vlttmp&time=time
+  Vlttmp&lat=Vlt&lat
+  Vlttmp&lon=Vlt&lon
+  copy_VarMeta(Vlttmp,Vuttmp)
+
+  Vlttmp(0,:,:)=Vlt
+  Vuttmp(0,:,:)=Vut
+
+  outName="SAMP_"+tostring(opt@date)+".nc"
+  system("/bin/rm -f "+outName)
+  ncdf = addfile(outName ,"c")
+  fAtt               = True
+  fAtt@Conventions   = "None"
+  fAtt@creation_date = systemfunc ("date")
+  fileattdef( ncdf, fAtt )            ; copy file attributes
+  filedimdef(ncdf,"time",-1,True) 
+  ncdf->Vlt=Vlttmp
+  ncdf->Vut=Vuttmp
+
+  delete([/yyyy,mm,dd,hh,units,time,splitDate,dtime_map/])
+  delete([/ndims,nlat,nlon/])
+  delete([/outName,Vlttmp,Vuttmp/])
+end if
+
 
 returnvar=new(2,"float")
 returnvar(0)=Vlt

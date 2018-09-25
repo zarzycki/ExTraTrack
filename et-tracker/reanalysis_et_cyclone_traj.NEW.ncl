@@ -38,8 +38,8 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1984
-  year_max = 1984
+  year_min = 1985
+  year_max = 1985
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
@@ -51,8 +51,8 @@ do_debug=False
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 1
-month_max = 12
+month_min = 9
+month_max = 9
 
 ; Final year of data, only used if a storm starts
 ; in Dec. and continues into the next year 
@@ -556,13 +556,17 @@ end if
 ; Find thickness of the right and left hand sides of storm
 ;========================================================
 
-B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i))
+opt=0
+opt@date=cd_calendar(time(i),3)
+opt@id=itc
+
+B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
 ;========================================================
 ; Compute thermal wind values (Vlt and Vut)
 ;========================================================
 
-rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp)
+rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
 Vlt(i) = rtn_tmp(0)
 Vut(i) = rtn_tmp(1)
 
@@ -814,14 +818,17 @@ end if
 ;========================================================
 ; Find thickness of the right and left hand sides of storm
 ;========================================================
+opt=0
+opt@date=cd_calendar(time(i),3)
+opt@id=itc
 
-B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i))
+B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
 ;========================================================
 ; Compute thermal wind values (Vlt and Vut)
 ;========================================================
 
-rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp)
+rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
 Vlt(i) = rtn_tmp(0)
 Vut(i) = rtn_tmp(1)
 
