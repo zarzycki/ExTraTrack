@@ -60,10 +60,11 @@ begin
 
 ; overlay x at location of minimum pressure
   txid0 = gsn_add_text(wks,plot(0),"x",minPlon,minPlat,False)
-  txid1 = gsn_add_text(wks,plot(1),"x",minPlon,minPlat,False)
+  ;txid1 = gsn_add_text(wks,plot(1),"x",minPlon,minPlat,False)
 
   gsn_panel(wks,plot,(/2,1/),False)
   
-  delete([/plot,wks,res,txid0,txid1/])
-  
+  ;delete([/plot,wks,res,txid0,txid1/])
+  delete([/plot,wks,res,txid0/])
+
 end
