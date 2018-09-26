@@ -1,11 +1,11 @@
 #!/bin/bash
   
-NEWFILE=new.txt
+NEWFILE=tc_traj
 rm $NEWFILE
 
 STORMID=0
 while IFS='' read -r line || [[ -n "$line" ]]; do
-  #echo $line
+#  echo $line
   if [ "${line:0:1}" == "s" ] ; then
     echo $line
     STORMSTRING=`printf "%03d\n" $STORMID`
