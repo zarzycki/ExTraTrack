@@ -31,7 +31,7 @@ begin
   end if
  
 ; if the storm goes south of 20 degN or hits northern domain boundary
-  if (minPlat .lt. 20. .or. minPlat .ge. latmax-0.001) then
+  if (abs(minPlat) .lt. 20. .or. minPlat .ge. latmax-0.001) then
     storm_check = False
   end if
   
