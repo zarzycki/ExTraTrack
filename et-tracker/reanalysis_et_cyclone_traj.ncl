@@ -8,6 +8,8 @@ load "../functions/bearing.ncl"
 load "../functions/et_track_plot.ncl"
 load "../functions/et_track_checks.ncl"
 load "../functions/et_phase_plot.ncl"
+load "../functions/cps_calcs.ncl"
+
 ;========================================================
 ; reads in TC trajectories and data
 ; follow storm through ET
@@ -36,40 +38,42 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1984
-  year_max = 1984
+  year_min = 1985
+  year_max = 1985
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
 end if
 
+do_debug=False
+
 ; recommended month_min = 1 and month_max = 12 for
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 8
-month_max = 11
+month_min = 1
+month_max = 12
 
 ; Final year of data, only used if a storm starts
 ; in Dec. and continues into the next year 
-data_year_max = 2002
+data_year_max = 2014
 
 ; Here you can specify the basin that needs to be loaded. negative means all basins, 
 ; 1 = NATL, 2 = EPAC, 3 = CPAC, 4 = WPAC...
 ; NOTE, if you change basin from NATL, you will need to change that latmin/latmax
-basin = 1
+basin = -1
 ; set lat/lon boundaries to avoid loading unnecessary data
-latmin=0.0
-latmax=85.0  
-lonmin=-120.0
-lonmax=30.0
 ;latmin=0.0
 ;latmax=85.0  
-;lonmin=-180.0
-;lonmax=180.0
+;lonmin=-120.0
+;lonmax=30.0
+latmin=-80.0
+latmax=80.0  
+lonmin=-180.0
+lonmax=180.0
   
 ; resolution
-resol = 0.50                 ; approximate resolution (deg) of the data (does not need to be exact).
+resol = 0.25                 ; approximate resolution (deg) of the data (does not need to be exact).
 hrintvl=6.0             ; hour interval of data (usually 6 hours if matching ibtracs/WMO)
 del_t = hrintvl*60*60   ; time interval in seconds )
 
@@ -241,12 +245,11 @@ do jtc = 0,ntc-1
     orilon=tsub(0,1)
     if (orilon .gt. 360.0-maskspacing) then
       orilon=360.0-maskspacing
+      print("    original lon: "+tsub(0,1)+"   modified lon: "+orilon)
     end if
 
-    print("original lon: "+tsub(0,1)+"   modified lon: "+orilon)
-
     if (tcMask({orilat},{orilon}) .ne. basin) then
-      print("     Not Atlantic basin... skipping storm")
+      print("     "+tcMask({orilat},{orilon})+" != "+basin+"... Not relevant basin... skipping storm")
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask,orilat,orilon/])
       continue
@@ -258,16 +261,25 @@ do jtc = 0,ntc-1
     end if
     end if
 
-    delete([/maskspacing,tcMask/])
-
-    print("     Atlantic basin... tracking storm")
+    print("     "+tcMask({orilat},{orilon})+" = "+basin+"... matching basin, tracking storm")
     print(" ")
 
+    delete([/maskspacing,tcMask/])
+
   end if
+
+  STARTTIME=stringtointeger(systemfunc("date -u +%s"))
 
   ;========================================================
   ; Find start time
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="finding start time"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+  
 
   ; convert longitude (0 to 360) to (-180 to 180)
   tsub(:,1) = where(tsub(:,1) .gt. 180, tsub(:,1) - 360, tsub(:,1))
@@ -298,9 +310,21 @@ do jtc = 0,ntc-1
   
   delete(end_date)
 
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
+
   ;========================================================
   ; Load input files
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="loading files into memory"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
 
   ; find previous month for selecting h2 files and convert to strings
   s_mon_prev = sprinti("%0.2i",s_month(itc)-1)
@@ -319,20 +343,23 @@ do jtc = 0,ntc-1
   end if
   
   delete([/e_year,e_mon_str,s_mon_prev,s_mon_str/])
-  
+
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
   ;========================================================
   ; Load Z and interpolate to pressure levels
   ;========================================================
 
-  ; new pressure levels  
-	pnew = (/300.,350.,400.,450.,500.,550.,600., \
-			 650.,700.,750.,800.,850.,900./)  
-	logp = log(pnew*100.)   ; convert p from hPa to Pa and take log
-	  
-  ; assign indices to be used later
-	indtop = 0      ; top index for VTU
-	indmid = 6      ; bottom index for VTU, top index for B, VTL
-	indbot = 12     ; bottom index for B, VTL
+if (do_debug) then
+  PRINTSTRING="load Z and interpolate to pressure levels"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
+
 
 	; read in data for Z levels
 	input1 = addfiles(files1,"r")
@@ -342,24 +369,41 @@ do jtc = 0,ntc-1
 	; read in data    
 	Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
 	nlev = dimsizes(Z3&lev)
-	Znew = Z3(:,0:nlev-2,:,:)
+
+  ; pressure levels
+  pnew = Z3&lev
+  logp = log(pnew*100.)   ; convert p from hPa to Pa and take log
+
+  ; assign indices to be used later
+	indtop = closest_val(300.,pnew)      ; top index for VTU
+	indmid = closest_val(600.,pnew)      ; bottom index for VTU, top index for B, VTL
+	indbot = closest_val(900.,pnew)      ; bottom index for B, VTL
+	print(indtop+" "+indmid+" "+indbot)
 	
 	; compute weights from latitudes  
 	deg2rad = 4.0*atan(1.0)/180.0
 	wgt = cos((Z3&lat)*deg2rad)
-  delete([/Z3/])
 
   ; flip longitude for geopotential height 
 	;Znew = lonFlip(Znew)
-	Z = Znew(:,:,:,{lonmin-eps:lonmax}) 
-	delete([/Znew/])
+	Z = Z3(:,:,:,{lonmin-eps:lonmax}) 
+  delete([/Z3/])
 
-
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
 
   ;========================================================
   ; Load data and calculate UMAG
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="Load data and calculate UMAG"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
 
 	; load wind speeds at lowermost model level
 	UBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
@@ -377,10 +421,36 @@ do jtc = 0,ntc-1
   copy_VarMeta(UBOT,UBOTMAG)
 
 	delete([/UBOT,VBOT/])
+
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+  
+
           
   ;========================================================
   ; Load data and preallocate some arrays
   ;========================================================
+
+if (do_debug) then
+  PRINTSTRING="Load data and preallocate some arrays"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
+  ; time and lat/lon arrays
+  time = input1[:]->time({s_time:e_time})
+  ; because lat/lon may be double and we want float, but NCL doesn't persist meta when
+  ; type converting, we load temp arrays, convert to float, and copy meta, release tmp arrays
+  lat_in = input1[0]->lat({latmin:latmax})
+  lon_in = input1[0]->lon({lonmin-eps:lonmax})
+  lat = tofloat(lat_in)
+  lon = tofloat(lon_in)
+  copy_VarMeta(lat_in,lat)
+  copy_VarMeta(lon_in,lon)
+	delete([/lat_in,lon_in/])
+
 
 	; flip longitude for sea level pressure  
 	PSL_all = input1[:]->PSL({s_time:e_time},{latmin:latmax},:)
@@ -398,11 +468,6 @@ do jtc = 0,ntc-1
     
   ; assign fill value for missing 
   PSL@_FillValue = 9.969209968386869e+36
-
-  ; time and lat/lon arrays
-  time = PSL&time
-  lat = dble2flt(PSL&lat)
-  lon = dble2flt(PSL&lon)
   
   ; get Z thickness between 600 and 900 for B calculation
   Z_thick = Z(:,indmid,:,:) - Z(:,indbot,:,:)
@@ -413,9 +478,22 @@ do jtc = 0,ntc-1
   Z_thick&lat = lat
   Z_thick&lon = lon
 
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
+
+
   ;========================================================
   ; Preallocate arrays
   ;======================================================== 
+
+if (do_debug) then
+  PRINTSTRING="Preallocate arrays"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
 
   ; record dimension sizes
   ntime = dimsizes(time)  ; time
@@ -435,6 +513,11 @@ do jtc = 0,ntc-1
   Vut     = new(ntime,float)   ; upper troposphere thermal wind (Hart 2003)
   ang_all = new((/nlat,nlon/),float) ; angle of all values from storm center
  
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
   ;========================================================
   ; Compute values during TC tracker
   ;======================================================== 
@@ -452,90 +535,40 @@ do jtc = 0,ntc-1
   ; compute distance traveled, speed of storm, and change in direction of motion
   ; for times already in TC trajectory
   do i = 1,nrows-1
+
+if (do_debug) then
+  print("doing row "+i)
+  PRINTSTRING="early calcs"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
     dist(i) = gc_latlon(minPlat(i),minPlon(i),minPlat(i-1),minPlon(i-1),2,4)  ; km
     ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
     d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
 
-    ;========================================================
-    ; Find thickness of the right and left hand sides of storm
-    ;========================================================
-  
-    ; assign left and right Zs to entire Z array
-    Zl = Z_thick(i,:,:)
-    Zr = Z_thick(i,:,:)
-    
-    ; find bearing between minimum pressure and each lat/lon pair
-    do jlat = 0,nlat-1
-      do jlon = 0,nlon-1
-    
-      ; only update angles if storm has moved at least 10 km
-      if (dist(i) .ge. 1 .or. any(ismissing(ang_all(jlat,jlon)))) then
-        ang_all(jlat,jlon) = bearing(minPlat(i),minPlon(i),lat(jlat),lon(jlon))
-      end if
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
-      ; find 500 km radius for Z calculations	  
-      d = gc_latlon(minPlat(i),minPlon(i),lat(jlat),lon(jlon),2,4)  ; km
-      if (d .gt. critRad) then
-        Zl(jlat,jlon) = Zl@_FillValue  ; set points outside radius to missing
-        Zr(jlat,jlon) = Zr@_FillValue  ; set points outside radius to missing
-        Z(i,:,jlat,jlon) = Z@_FillValue
-      end if 
-    
-      ; set values along great circle line to missing (neither left nor right)
-      if (ang_all(jlat,jlon) .eq. ang(i)) then
-        Zl(jlat,jlon) = Zl@_FillValue
-        Zr(jlat,jlon) = Zr@_FillValue
-      
-      ; for storm travel angles in quadrants 1 and 2 (NE and SE)
-      else if (ang(i) .ge. 0 .and. ang(i) .lt. 180) then
-        if (ang_all(jlat,jlon) .gt. ang(i) .and. ang_all(jlat,jlon) .lt. ang(i)+180) then
-          Zl(jlat,jlon) = Zl@_FillValue
-        else
-          Zr(jlat,jlon) = Zr@_FillValue
-        end if
-      
-      ; for storm travel angles in quadrants 3 and 4 (NW and SW)
-      else if (ang(i) .ge. 180 .and. ang(i) .lt. 360) then
-        if (ang_all(jlat,jlon) .gt. ang(i)-180 .and. ang_all(jlat,jlon) .lt. ang(i)) then
-          Zr(jlat,jlon) = Zr@_FillValue
-        else
-          Zl(jlat,jlon) = Zl@_FillValue
-        end if	  
-      end if
-      end if
-      end if
-    
-      delete(d)
-    
-      end do
-    end do
-  
-    delete([/jlat,jlon/])
-  
-    ;========================================================
-    ; Compute B value
-    ;========================================================
+;========================================================
+; Find thickness of the right and left hand sides of storm
+;========================================================
 
-    ; cyclone thermal symmetry parameter (Eq. 2, Hart 2003) using weighted average
-    B(i) = wgt_areaave(Zr,wgt,1.0,0) - wgt_areaave(Zl,wgt,1.0,0)
-  
-    delete([/Zl,Zr/])
+opt=0
+opt@date=cd_calendar(time(i),3)
+opt@id=itc
 
-    ;========================================================
-    ; Compute thermal wind values (Vlt and Vut)
-    ;========================================================
+B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
-    ; find dZ = Zmax - Zmin at each pressure level
-    dZ = new((/dimsizes(logp)/),float)
-    do jlev = 0,dimsizes(logp)-1
-      dZ(jlev) = max(Z(i,jlev,:,:)) - min(Z(i,jlev,:,:))
-    end do
-  
-    ; Compute thermal winds using Eqs. from Hart 2003 using linear regression
-    Vlt(i) = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
-    Vut(i) = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
-  
-    delete([/dZ,jlev/])
+;========================================================
+; Compute thermal wind values (Vlt and Vut)
+;========================================================
+
+rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
+Vlt(i) = rtn_tmp(0)
+Vut(i) = rtn_tmp(1)
 
     ;========================================================
     ; Print various fields to screen
@@ -543,20 +576,13 @@ do jtc = 0,ntc-1
   
     if (i .eq. 1) then
       print("    Press.   Lat      Lon     dist    V      ang" + \
-            "     d_ang      B     Vlt     Vut")
+            "     d_ang      B     Vlt     Vut     TYPE")
     else
-    print("   " + sprintf("%6.0f",minP(i)) + \
-        "   " + sprintf("%5.2f",minPlat(i)) + \
-        "   " + sprintf("%6.2f",minPlon(i)) + \
-        "   " + sprintf("%5.1f",dist(i)) + \
-        "   " + sprintf("%4.1f",V(i)) + \
-        "   " + sprintf("%5.1f",ang(i)) + \
-        "   " + sprintf("%6.1f",d_ang(i)) + \
-        "   " + sprintf("%5.1f",B(i)) + \
-        "   " + sprintf("%4.0f",Vlt(i)) + \
-        "   " + sprintf("%4.0f",Vut(i)))
+      print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i),V(i),ang(i),d_ang(i), \
+        B(i),Vlt(i),Vut(i),"TC")
+
     end if
-  
+
   end do   ; end loop of already TC tracked stuff
 
   delete(i)
@@ -565,7 +591,7 @@ do jtc = 0,ntc-1
   ; call function to create et plot
   ;========================================================
 
-  plot_track = True
+  plot_track = False
   if (plot_track) then  
     do i = 0, nrows-1
       et_track_plot(type,itc,i,lat,lon,date(i),minP(i),minPlat(i),minPlon(i), \
@@ -580,6 +606,12 @@ do jtc = 0,ntc-1
 
   ; loop over all times after TC tracker ends
   do i = nrows,ntime-1
+
+if (do_debug) then
+  print("Starting time: "+i)
+  wcStrt = systemfunc("date")
+end if
+
     if (minPlat(i-1) .ge. (latmax-10.) .or. minPlon(i-1) .ge. (lonmax-10.) .or. \
            minPlat(i-1) .le. (latmin+10.) .or. minPlon(i-1) .le. (lonmin+10.)) then
       print("Done tracking storm since it exited our available domain...")
@@ -600,42 +632,83 @@ do jtc = 0,ntc-1
       end if
       end if
       ; --CMZ
- 
-      do jlat = 0,nlat-1
-      do jlon = 0,nlon-1
-        d = gc_latlon(minPlat(i-1),minPlon(i-1),lat(jlat),lon(jlon),2,4)  ; km
-        if (d .gt. rad_tmp) then
-          PSL_tmp(jlat,jlon) = PSL_tmp@_FillValue  ; set points outside radius to missing
-          UBOTMAG_tmp(jlat,jlon) = UBOTMAG_tmp@_FillValue
-        end if
-      end do
-      end do
+
+if (do_debug) then
+  print("Starting masking operation")
+  wcStrtSub = systemfunc("date")
+end if
+
+      ;do jlat = 0,nlat-1
+      ;do jlon = 0,nlon-1
+      ;  d = gc_latlon(minPlat(i-1),minPlon(i-1),lat(jlat),lon(jlon),2,4)  ; km
+      ;  if (d .gt. rad_tmp) then
+      ;    PSL_tmp(jlat,jlon) = PSL_tmp@_FillValue  ; set points outside radius to missing
+      ;    UBOTMAG_tmp(jlat,jlon) = UBOTMAG_tmp@_FillValue
+      ;  end if
+      ;end do
+      ;end do
+lat2d=conform_dims((/nlat,nlon/),lat,0)
+lon2d=conform_dims((/nlat,nlon/),lon,1)
+d = gc_latlon(minPlat(i-1),minPlon(i-1),lat2d,lon2d,2,4)  ; km
+PSL_tmp=where(d.gt.rad_tmp,PSL_tmp@_FillValue,PSL_tmp)
+UBOTMAG_tmp=where(d.gt.rad_tmp,UBOTMAG_tmp@_FillValue,UBOTMAG_tmp)
+delete(d)
+delete(lat2d)
+delete(lon2d)
+
+if (do_debug) then
+  print("...ending masking operation")
+  wallClockElapseTime(wcStrtSub, "masking", 0)
+end if
 
       ; find max wind speed
       V_tmp = max(UBOTMAG_tmp)
 
-      delete([/d,rad_tmp,jlat,jlon,UBOTMAG_tmp/])
+      ;delete([/d,rad_tmp,jlat,jlon,UBOTMAG_tmp/])
+      delete([/rad_tmp,UBOTMAG_tmp/])
 
       ;========================================================
       ; Find all local pressure minimums
       ;========================================================
 
       ; find location of pressure minimums
+if (do_debug) then
+  PRINTSTRING="pmin search"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
       locmin = local_min(PSL_tmp,False,0.0)
   
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
       ; if pressure minimums exist, choose the best one
       if (locmin(0) .gt. 0) then
         locmin_lat = lat(locmin@yi)    ; latitudes of local mins
         locmin_lon = lon(locmin@xi)    ; longitudes of local mins
         nmins = dimsizes(locmin_lat)   ; number of local mins
 
+if (do_debug) then
+  PRINTSTRING="plot local mins"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
         ; plot all local mins for debugging
-        plot_test = False
+        plot_test = True
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
           et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
                 PSL_tmp,PSL(i,:,:))
         end if
+
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
         ;========================================================
         ; Test if each local min is a valid storm
@@ -647,6 +720,12 @@ do jtc = 0,ntc-1
         dist_tmp = new(nmins,float)       ; distance traveled (km)
         ang_tmp = new(nmins,float)        ; storm bearing (degrees)
         d_ang_tmp = new(nmins,float)      ; change in bearing (degrees)
+  
+if (do_debug) then
+  PRINTSTRING="pmin testing"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
   
         ; loop over all local minimums
         do jmin = 0,nmins-1
@@ -663,14 +742,28 @@ do jtc = 0,ntc-1
                      dist_tmp(jmin),d_ang_tmp(jmin))
         end do
   
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
+
         delete(jmin)
   
         locmin_true = ind(locmin_test)   ; gather indices where storm is valid
 
+
+  
+
+
         ;========================================================
         ; Choose best storm (valid + lowest pressure)
         ;========================================================
-  
+if (do_debug) then
+  PRINTSTRING="best storm choice"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
         if (.not. all(ismissing(locmin_true))) then
           minPind = ind(minP_tmp .eq. min(minP_tmp(locmin_true)))  ; choose lowest pressure
 
@@ -678,10 +771,20 @@ do jtc = 0,ntc-1
           ; have the exact same minimum pressure (yes, this actually happens)
           ; choose minimum pressure with travel distance/speed most similar to previous time step
           if (dimsizes(minPind) .gt. 1) then
-            delete(minPind)
             dist_diff = abs(dist(i-1) - dist_tmp)
-            minPind = ind(minP_tmp .eq. min(minP_tmp(locmin_true)) .and. \
-                          dist_diff .eq. min(dist_diff(locmin_true)))
+            minPindTmp=-1
+            minDiffTmp=99999.9
+            do ii = 0,dimsizes(minPind)-1
+              print(dist_diff(minPind(ii))+" "+minDiffTmp)
+              if (dist_diff(minPind(ii)) .lt. minDiffTmp) then
+                minDiffTmp=dist_diff(minPind(ii))
+                print("updating minPindTmp from "+minPindTmp+" "+minPind(ii))
+                minPindTmp=minPind(ii)
+              end if
+            end do
+            delete([/minDiffTmp,dist_diff,ii,minPind/])
+            minPind=minPindTmp
+            delete(minPindTmp)
           end if
   
           minPlat(i) = (/locmin_lat(minPind)/)   ; latitude of minimum pressure
@@ -707,101 +810,33 @@ do jtc = 0,ntc-1
         delete([/PSL_tmp,locmin/])
         break
       end if
-  
-      ;========================================================
-      ; Find thickness of the right and left hand sides of storm
-      ;========================================================
-  
-      ; assign left and right Zs to entire Z array
-      Zl = Z_thick(i,:,:)
-      Zr = Z_thick(i,:,:)
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
-      ; find bearing between minimum pressure and each lat/lon pair
-      do jlat = 0,nlat-1
-        do jlon = 0,nlon-1
-    
-        ; only update angles if storm has moved at least 10 km
-        if (dist(i) .ge. 10) then
-          ang_all(jlat,jlon) = bearing(minPlat(i),minPlon(i),lat(jlat),lon(jlon))
-        end if
+;========================================================
+; Find thickness of the right and left hand sides of storm
+;========================================================
+opt=0
+opt@date=cd_calendar(time(i),3)
+opt@id=itc
 
-        d = gc_latlon(minPlat(i),minPlon(i),lat(jlat),lon(jlon),2,4)  ; km	  
-        if (d .gt. critRad) then
-          Zl(jlat,jlon) = Zl@_FillValue  ; set points outside radius to missing
-          Zr(jlat,jlon) = Zr@_FillValue  ; set points outside radius to missing
-          Z(i,:,jlat,jlon) = Z@_FillValue
-        end if
-    
-        ; set values along great circle line to missing (neither left nor right)
-        if (ang_all(jlat,jlon) .eq. ang(i)) then
-          Zl(jlat,jlon) = Zl@_FillValue
-          Zr(jlat,jlon) = Zr@_FillValue
-      
-        ; for storm travel angles in quadrants 1 and 2 (NE and SE)
-        else if (ang(i) .lt. 180) then
-          if (ang_all(jlat,jlon) .gt. ang(i) .and. ang_all(jlat,jlon) .lt. ang(i)+180) then
-            Zl(jlat,jlon) = Zl@_FillValue
-          else
-            Zr(jlat,jlon) = Zr@_FillValue
-          end if
-      
-        ; for storm travel angles in quadrants 3 and 4 (NW and SW)
-        else if (ang(i) .ge. 180) then
-          if (ang_all(jlat,jlon) .gt. ang(i)-180 .and. ang_all(jlat,jlon) .lt. ang(i)) then
-            Zr(jlat,jlon) = Zr@_FillValue
-          else
-            Zl(jlat,jlon) = Zl@_FillValue
-          end if	  
-        end if
-        end if
-        end if
-    
-        delete(d)
-    
-        end do   ; finding bearing loop
-      end do     ; finding bearing loop
+B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
-      delete([/jlat,jlon/])
+;========================================================
+; Compute thermal wind values (Vlt and Vut)
+;========================================================
 
-      ;========================================================
-      ; Compute B value
-      ;========================================================
-
-      ; cyclone thermal symmetry parameter (Eq. 2, Hart 2003) using weighted average
-      B(i) = wgt_areaave(Zr,wgt,1.0,0) - wgt_areaave(Zl,wgt,1.0,0)
- 
-      delete([/Zl,Zr/])
-  
-      ;========================================================
-      ; Compute thermal wind values (Vlt and Vut)
-      ;========================================================
-
-      ; find dZ = Zmax - Zmin at each pressure level
-      dZ = new((/dimsizes(logp)/),float)
-      do jlev = 0,dimsizes(logp)-1
-        dZ(jlev) = max(Z(i,jlev,:,:)) - min(Z(i,jlev,:,:))
-      end do
-  
-      ; Compute thermal winds using Eqs. from Hart 2003 using linear regression
-      Vlt(i) = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
-      Vut(i) = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
-  
-      delete([/dZ/])
+rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
+Vlt(i) = rtn_tmp(0)
+Vut(i) = rtn_tmp(1)
 
       ;========================================================
       ; Print various fields to screen
       ;========================================================
  
-      print("   " + sprintf("%6.0f",minP(i)) + \
-            "   " + sprintf("%5.2f",minPlat(i)) + \
-            "   " + sprintf("%6.2f",minPlon(i)) + \
-            "   " + sprintf("%5.1f",dist(i)) + \
-            "   " + sprintf("%4.1f",V(i)) + \
-            "   " + sprintf("%5.1f",ang(i)) + \
-            "   " + sprintf("%6.1f",d_ang(i)) + \
-            "   " + sprintf("%5.1f",B(i)) + \
-            "   " + sprintf("%4.0f",Vlt(i)) + \
-            "   " + sprintf("%4.0f",Vut(i)))
+print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i),V(i),ang(i),d_ang(i),B(i),Vlt(i),Vut(i),"ETC")
 
       ;========================================================
       ; Plot storm
@@ -837,12 +872,23 @@ do jtc = 0,ntc-1
   ; Plot phase space diagram
   ;========================================================
 
+if (do_debug) then
+  PRINTSTRING="phase plotting"
+  print("Starting "+PRINTSTRING)
+  wcStrtSub = systemfunc("date")
+end if
+
   plot_phase = True
   if (plot_phase) then
     system("mkdir phase_plots")
     system("rm -f ./phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
     et_phase_plot(type,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
   end if
+
+if (do_debug) then
+  print("...ending "+PRINTSTRING)
+  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
+end if
 
   delete([/date/])
   
@@ -881,6 +927,10 @@ do jtc = 0,ntc-1
     "   %4.1f   %7.2f   %7.2f" + \
     "   %7.2f   %7.2f   %7.2f" + \
     "   %4.0f  %2.0f  %2.0f  %2.0f")
+
+  ENDTIME=stringtointeger(systemfunc("date -u +%s"))
+  TOTTIME=ENDTIME-STARTTIME
+  asciiwrite ("./text_files/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
   
   delete([/i,itc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
 
