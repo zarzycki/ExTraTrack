@@ -51,8 +51,8 @@ do_debug=False
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 9
-month_max = 9
+month_min = 1
+month_max = 12
 
 ; Final year of data, only used if a storm starts
 ; in Dec. and continues into the next year 
@@ -61,14 +61,14 @@ data_year_max = 2014
 ; Here you can specify the basin that needs to be loaded. negative means all basins, 
 ; 1 = NATL, 2 = EPAC, 3 = CPAC, 4 = WPAC...
 ; NOTE, if you change basin from NATL, you will need to change that latmin/latmax
-basin = 1
+basin = -1
 ; set lat/lon boundaries to avoid loading unnecessary data
 ;latmin=0.0
 ;latmax=85.0  
 ;lonmin=-120.0
 ;lonmax=30.0
-latmin=0.0
-latmax=85.0  
+latmin=-80.0
+latmax=80.0  
 lonmin=-180.0
 lonmax=180.0
   
@@ -698,7 +698,7 @@ if (do_debug) then
 end if
 
         ; plot all local mins for debugging
-        plot_test = False
+        plot_test = True
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
           et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \

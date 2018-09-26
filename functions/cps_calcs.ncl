@@ -12,8 +12,7 @@ function calc_B(
   opt[1] : numeric
   )
 local pi, deg2rad, qq_lat, qq_lon, qq_nlat, qq_nlon, qq_ang_all, qq_wgt, Zl, Zr, d, dist, ang, \
-  ndims, nlat, nlon
-
+  ndims, nlat, nlon, yyyy, mm, dd, hh, units, time, splitDate, dtime_map, outName, Zltmp, Zrtmp
 begin
 
   pi = 4.*atan(1.)
@@ -77,7 +76,7 @@ begin
   
     delete([/jlat,jlon/])
 
-    if (0 .eq. 1) then
+    if (1 .eq. 0) then
       print("... writing out B to tmp netCDF")
       dtime_map = (/4,2,2,2/)
       splitDate = str_split_by_length(tostring(opt@date),dtime_map)
@@ -197,52 +196,6 @@ Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6
 
 ;print(logp(indmid:indbot))
 ;print(dZ(indmid:indbot))
-
-
-if (0 .eq. 1) then
-  print("... writing out Vlt/Vut to tmp netCDF")
-  dtime_map = (/4,2,2,2/)
-  splitDate = str_split_by_length(tostring(opt@date),dtime_map)
-  yyyy=toint(splitDate(0))
-  mm=toint(splitDate(1))
-  dd=toint(splitDate(2))
-  hh=toint(splitDate(3))
-  units  = "days since 1900-01-01 00:00:00"
-  time   = cd_inv_calendar(yyyy,mm,dd,hh,0,0,units,0)
-
-  ndims=dimsizes(Vlt)
-  nlat=ndims(0)
-  nlon=ndims(1)
-  Vlttmp=new((/1,nlat,nlon/),typeof(Vlt))
-  Vuttmp=new((/1,nlat,nlon/),typeof(Vut))
-
-  Vlttmp!0="time"
-  Vlttmp!1="lat"
-  Vlttmp!2="lon"
-  Vlttmp&time=time
-  Vlttmp&lat=Vlt&lat
-  Vlttmp&lon=Vlt&lon
-  copy_VarMeta(Vlttmp,Vuttmp)
-
-  Vlttmp(0,:,:)=Vlt
-  Vuttmp(0,:,:)=Vut
-
-  outName="SAMP_"+tostring(opt@date)+".nc"
-  system("/bin/rm -f "+outName)
-  ncdf = addfile(outName ,"c")
-  fAtt               = True
-  fAtt@Conventions   = "None"
-  fAtt@creation_date = systemfunc ("date")
-  fileattdef( ncdf, fAtt )            ; copy file attributes
-  filedimdef(ncdf,"time",-1,True) 
-  ncdf->Vlt=Vlttmp
-  ncdf->Vut=Vuttmp
-
-  delete([/yyyy,mm,dd,hh,units,time,splitDate,dtime_map/])
-  delete([/ndims,nlat,nlon/])
-  delete([/outName,Vlttmp,Vuttmp/])
-end if
-
 
 returnvar=new(2,"float")
 returnvar(0)=Vlt
