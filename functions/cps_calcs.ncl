@@ -1,8 +1,6 @@
 undef("calc_B")
 function calc_B(
   Z_thick : numeric,  
-  lat[*] : numeric,
-  lon[*] : numeric,
   qq_ddeg[1] : numeric,
   critRad[1] : numeric,
   dist[1] : numeric,
@@ -17,18 +15,18 @@ begin
 
   pi = 4.*atan(1.)
   deg2rad = pi/180.
-    
-    ; subselect lat/lon arrays to within 10deg of minPlon
-    qq_lat = lat({(minPlat-qq_ddeg):(minPlat+qq_ddeg)})
-    qq_lon = lon({(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
-    qq_nlat = dimsizes(qq_lat)
-    qq_nlon = dimsizes(qq_lon)
-    qq_ang_all = new((/qq_nlat,qq_nlon/),float) ; angle of all values from storm center
-	  qq_wgt = cos(qq_lat*deg2rad)
 
     ; assign left and right Zs to entire Z array
     Zl = Z_thick({(minPlat-qq_ddeg):(minPlat+qq_ddeg)},{(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
     Zr = Zl
+    
+    ; subselect lat/lon arrays to within 10deg of minPlon
+    qq_lat=Zl&lat
+    qq_lon=Zl&lon
+    qq_nlat = dimsizes(qq_lat)
+    qq_nlon = dimsizes(qq_lon)
+    qq_ang_all = new((/qq_nlat,qq_nlon/),float) ; angle of all values from storm center
+	  qq_wgt = cos(qq_lat*deg2rad)
     
     do jlat = 0,qq_nlat-1
       do jlon = 0,qq_nlon-1

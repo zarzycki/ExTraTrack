@@ -247,7 +247,7 @@ do loop_ind = 0,ntc-1
 ; select appropriate basin based on trajectory lat/lon
 ; analyze only north atlantic basin storms, skip all others
   
-  basin = 1
+  basin = 4
   maskspacing=1.0
   tcMask = mask_tc(0,-999,-999,maskspacing,360)
 
@@ -283,6 +283,11 @@ do loop_ind = 0,ntc-1
 
 ; for storm in Atlantic basin, get subset of data 
   et_ind = ind(etnum .eq. itc)
+  if(all(ismissing(et_ind))) then
+    print("... potentially missing data: "+itc+"  TC  "+s_year(jtc)+" "+s_month(jtc)+" "+s_day(jtc))
+    delete(et_ind)
+    continue
+  end if
   B_tmp = B(et_ind)
   Vlt_tmp = Vlt(et_ind)
   psl_tmp = psl(et_ind)

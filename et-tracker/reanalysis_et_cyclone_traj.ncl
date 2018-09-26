@@ -38,8 +38,8 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1985
-  year_max = 1985
+  year_min = 1987
+  year_max = 1987
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
@@ -51,7 +51,7 @@ do_debug=False
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 1
+month_min = 3
 month_max = 12
 
 ; Final year of data, only used if a storm starts
@@ -560,7 +560,7 @@ opt=0
 opt@date=cd_calendar(time(i),3)
 opt@id=itc
 
-B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
+B(i) = calc_B(Z_thick(i,:,:),10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
 ;========================================================
 ; Compute thermal wind values (Vlt and Vut)
@@ -822,7 +822,7 @@ opt=0
 opt@date=cd_calendar(time(i),3)
 opt@id=itc
 
-B(i) = calc_B(Z_thick(i,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
+B(i) = calc_B(Z_thick(i,:,:),10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
 ;========================================================
 ; Compute thermal wind values (Vlt and Vut)
