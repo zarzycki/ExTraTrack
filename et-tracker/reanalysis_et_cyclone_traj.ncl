@@ -38,8 +38,8 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1987
-  year_max = 1987
+  year_min = 1984
+  year_max = 1984
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
@@ -51,7 +51,7 @@ do_debug=False
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 3
+month_min = 1
 month_max = 12
 
 ; Final year of data, only used if a storm starts
@@ -253,7 +253,7 @@ do jtc = 0,ntc-1
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask,orilat,orilon/])
       continue
-    else if (tsub(nrows-1,2) .lt. 20.0) then
+    else if (abs(tsub(nrows-1,2)) .lt. 20.0) then
       print("      Storm dissipates... skipping storm")
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask/])
@@ -698,7 +698,7 @@ if (do_debug) then
 end if
 
         ; plot all local mins for debugging
-        plot_test = True
+        plot_test = False
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
           et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
@@ -878,7 +878,7 @@ if (do_debug) then
   wcStrtSub = systemfunc("date")
 end if
 
-  plot_phase = True
+  plot_phase = False
   if (plot_phase) then
     system("mkdir phase_plots")
     system("rm -f ./phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
