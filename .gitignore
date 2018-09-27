@@ -1,4 +1,5 @@
 et-tracker/text_files/
+et-tracker/climatology_files/
 colin-plotting/
 *.TIME
 nohup.out
