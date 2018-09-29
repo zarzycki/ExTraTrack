@@ -256,7 +256,7 @@ begin
   radsrccuts=(/300.0,500.0,700.0/)
   if ( minPlat .lt. radlatcuts(0) ) then
     rad_tmp=radsrccuts(0)
-  else if ( minPlat .ge. minPlat ) then
+  else if ( minPlat .ge. radlatcuts(2) ) then
     rad_tmp=radsrccuts(2)
   else
     rad_tmp=radsrccuts(1)

@@ -24,11 +24,15 @@ print("et_cyclone_phase.ncl")
 print(" ")
 
 nlfile="nl.ASD.mp120a"
+nldefaults="./nl-defaults/nl.defaults"
+
 type = namelist_extract( nlfile, "type", "string")
 tdir = namelist_extract( nlfile, "tdir", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
 dir = namelist_extract( nlfile, "dir", "string")
 fname1 = namelist_extract( nlfile, "fname1", "string")
+ftimeunits = namelist_extract( nlfile, "ftimeunits", "string")
+ftimecal = namelist_extract( nlfile, "ftimecal", "string")
 
 data_year_max = namelist_extract( nlfile, "data_year_max", "integer")
 basin = namelist_extract( nlfile, "basin", "integer")
@@ -38,9 +42,11 @@ latmax = namelist_extract( nlfile, "latmax", "float")
 lonmin = namelist_extract( nlfile, "lonmin", "float")
 lonmax = namelist_extract( nlfile, "lonmax", "float")
 
-resol = namelist_extract( nlfile, "resol", "float")
-hrintvl = namelist_extract( nlfile, "hrintvl", "float")
-critRad = namelist_extract( nlfile, "critRad", "float")
+resol = namelist_extract( nldefaults, "resol", "float")
+hrintvl = namelist_extract( nldefaults, "hrintvl", "float")
+critRad = namelist_extract( nldefaults, "critRad", "float")
+eps = namelist_extract( nldefaults, "eps", "float")
+minlatetc = namelist_extract( nldefaults, "minlatetc", "float")
 
 print(" ")
 
@@ -71,12 +77,6 @@ end if
 ; time interval between traj points in seconds
 del_t = hrintvl*60*60
   
-; define small number to use with coordinate indexes (fixes annoying bug)
-eps = 0.0001
-
-; minimum latitude (abs) for calculating ETC parms past TC lifecycle
-minlatetc=20.0
-
 ; levels (mb) for CPS (Hart 2003) calcs (top -> bottom)
 cpslevs=(/300.0,600.0,900.0/)
 
@@ -190,21 +190,6 @@ print("Storm trajectories loaded.")
 print(" ")
 
 ;========================================================
-; Assign maximum storm radius based on latitude
-;========================================================
-  
-; preallocate arrays for distance from storm center and radius allowed
-nlat = floattoint(1+(latmax-latmin)/resol)
-lat = fspan(latmin,latmax,nlat)
-rad = new(nlat,float)
-
-do jlat = 0,nlat-1     ; loop over all lats
-  rad(jlat) = get_sizeRad_from_lat(lat(jlat))
-end do
-
-delete([/lat,nlat,jlat/])
-
-;========================================================
 ; Read in data
 ;========================================================
 
@@ -274,9 +259,9 @@ do jtc = 0,ntc-1
   ; convert start time to match data calendar format
 
   OPT=0
-  OPT@calendar="noleap"
+  OPT@calendar=ftimecal
   s_time = cd_inv_calendar(s_year(itc),s_month(itc),s_day(itc),s_hour(itc),0,0, \
-                           "days since 1979-01-01 00:00:00",OPT)
+                           ftimeunits,OPT)
   s_date = sprinti("%0.4i",s_year)+sprinti("%0.2i",s_month)+sprinti("%0.2i",s_day)
 
 

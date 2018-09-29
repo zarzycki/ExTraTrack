@@ -60,7 +60,7 @@ begin
    end if
 
    if (return_type.eq."string") then
-       value=str_get_field(namlst(iKEY), 2, "= ,"+tab+dq)
+       value=str_get_field(namlst(iKEY), 2, "=,"+tab+dq)
        print("Reading: "+keynam+" from "+pfName+" as "+return_type+":          "+value)
        return(value)
    end if
