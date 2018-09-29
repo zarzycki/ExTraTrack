@@ -38,8 +38,8 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1984
-  year_max = 1984
+  year_min = 2005
+  year_max = 2005
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
@@ -61,7 +61,7 @@ data_year_max = 2014
 ; Here you can specify the basin that needs to be loaded. negative means all basins, 
 ; 1 = NATL, 2 = EPAC, 3 = CPAC, 4 = WPAC...
 ; NOTE, if you change basin from NATL, you will need to change that latmin/latmax
-basin = -1
+basin = 6
 ; set lat/lon boundaries to avoid loading unnecessary data
 ;latmin=0.0
 ;latmax=85.0  
