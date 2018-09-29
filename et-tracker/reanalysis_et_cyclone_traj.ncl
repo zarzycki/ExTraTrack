@@ -9,6 +9,7 @@ load "../functions/et_track_plot.ncl"
 load "../functions/et_track_checks.ncl"
 load "../functions/et_phase_plot.ncl"
 load "../functions/cps_calcs.ncl"
+load "../functions/namelist_extract.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
@@ -22,70 +23,75 @@ begin
 print("et_cyclone_phase.ncl")
 print(" ")
 
-; type of data
-type="era"
-; trajectory directory
-tdir = "./tc-tracking/"
-tfile = "tc_traj"
-; data directory
-dir = "/glade/u/home/zarzycki/scratch/TEST-ET2/"
-fname1 = "f.asd2017.cesm20b05.FAMIPC6CLM5.mp15a-120a-US_t12.exp213.cam.h7."
+nlfile="nl.ASD.mp120a"
+type = namelist_extract( nlfile, "type", "string")
+tdir = namelist_extract( nlfile, "tdir", "string")
+tfile = namelist_extract( nlfile, "tfile", "string")
+dir = namelist_extract( nlfile, "dir", "string")
+fname1 = namelist_extract( nlfile, "fname1", "string")
+
+data_year_max = namelist_extract( nlfile, "data_year_max", "integer")
+basin = namelist_extract( nlfile, "basin", "integer")
+
+latmin = namelist_extract( nlfile, "latmin", "float")
+latmax = namelist_extract( nlfile, "latmax", "float")
+lonmin = namelist_extract( nlfile, "lonmin", "float")
+lonmax = namelist_extract( nlfile, "lonmax", "float")
+
+resol = namelist_extract( nlfile, "resol", "float")
+hrintvl = namelist_extract( nlfile, "hrintvl", "float")
+critRad = namelist_extract( nlfile, "critRad", "float")
 
 print(" ")
 
-; select year(s) of traj files to look at.
+; select year(s) and months(s) of traj files to look at.
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 2010
+  year_min = 2012
   year_max = 2012
+  print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
 end if
+if (.not. isdefined("month_min") .or. .not. isdefined("month_max"))
+  month_min = 1
+  month_max = 12
+  print("No CLI month_min_str / month_max_str, using hardcoded: "+month_min+"   "+month_max)
+else
+  month_min=toint(month_min_str)
+  month_max=toint(month_max_str)
+end if
 
-do_debug=False
+;========================================================
+; Internal calculations, probably do not need to change...
+;========================================================
 
-; recommended month_min = 1 and month_max = 12 for
-; analyzing an entire year of data in final analysis.
-; Other months are useful for testing over shorter
-; interval or a particular storm
-month_min = 1
-month_max = 12
-
-; Final year of data, only used if a storm starts
-; in Dec. and continues into the next year 
-data_year_max = 2014
-
-; Here you can specify the basin that needs to be loaded. negative means all basins, 
-; 1 = NATL, 2 = EPAC, 3 = CPAC, 4 = WPAC...
-; NOTE, if you change basin from NATL, you will need to change that latmin/latmax
-basin = 6
-; set lat/lon boundaries to avoid loading unnecessary data
-latmin=-80.0
-latmax=80.0  
-; lonmax -180->360 should cover both -180-180 and 0-360 lat/lon netCDFs...
-lonmin=-180.0
-lonmax=360.0
-  
-; resolution
-resol = 0.25                 ; approximate resolution (deg) of the data (does not need to be exact).
-hrintvl=6.0             ; hour interval of data (usually 6 hours if matching ibtracs/WMO)
-del_t = hrintvl*60*60   ; time interval in seconds )
-
-; crit radius for calculating B VTL VLU
-critRad = 500.0
+; time interval between traj points in seconds
+del_t = hrintvl*60*60
   
 ; define small number to use with coordinate indexes (fixes annoying bug)
 eps = 0.0001
+
+; minimum latitude (abs) for calculating ETC parms past TC lifecycle
+minlatetc=20.0
+
+; search radius lat thresholds
+radlatcuts=(/20.0 ,-99.9, 45.0/)
+radsrccuts=(/300.0,500.0,700.0/)
+
+; spacing for creating basin-specific masks, 1.0 is fine for most applications...
+maskspacing=1.0
 
 ; info for degree/radian conversions
 pi = 4.*atan(1.)
 d2r = pi/180.
 r2d = (1./d2r)
 
+; debugging
 plot_test = False
+do_debug=False
 
 ;========================================================
 ; Read in storm trajectories from Colins file
@@ -194,12 +200,12 @@ lat = fspan(latmin,latmax,nlat)
 rad = new(nlat,float)
 
 do jlat = 0,nlat-1     ; loop over all lats
-if (lat(jlat) .lt. 20) then       ; 300 km storm diameter near equator
-  rad(jlat) = 300.
-else if (lat(jlat) .ge. 45) then  ; 700 km storm diameter in midlatitudes
-  rad(jlat) = 700.
+if (lat(jlat) .lt. radlatcuts(0)) then       ; 300 km storm diameter near equator
+  rad(jlat) = radsrccuts(0)
+else if (lat(jlat) .ge. radlatcuts(2)) then  ; 700 km storm diameter in midlatitudes
+  rad(jlat) = radsrccuts(2)
 else                              ; 500 km storm diameter in between
-  rad(jlat) = 500.
+  rad(jlat) = radsrccuts(1)
 end if
 end if
 end do
@@ -235,7 +241,6 @@ do jtc = 0,ntc-1
   if (basin .gt. 0) then
     print("  Checking storm basin...")
 
-    maskspacing=1.0
     tcMask = mask_tc(0,-999,-999,maskspacing,360)
 
     orilat=tsub(0,2)
@@ -250,7 +255,7 @@ do jtc = 0,ntc-1
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask,orilat,orilon/])
       continue
-    else if (abs(tsub(nrows-1,2)) .lt. 20.0) then
+    else if (abs(tsub(nrows-1,2)) .lt. minlatetc) then
       print("      Storm dissipates... skipping storm")
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask/])
@@ -527,12 +532,12 @@ Vut(i) = rtn_tmp(1)
 
       ; ++CMZ
       ; rad_tmp = rad(ind(lat .eq. minPlat(i-1)))
-      if ( minPlat(i-1) .lt. 20.0 ) then
-        rad_tmp=300.
-      else if ( minPlat(i-1) .ge. 45.0) then
-        rad_tmp=700.
+      if ( minPlat(i-1) .lt. radlatcuts(0) ) then
+        rad_tmp=radsrccuts(0)
+      else if ( minPlat(i-1) .ge. radlatcuts(2) ) then
+        rad_tmp=radsrccuts(2)
       else
-        rad_tmp=500.
+        rad_tmp=radsrccuts(1)
       end if
       end if
 
