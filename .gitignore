@@ -1,3 +1,4 @@
+cyc.*
 et-tracker/tc-tracking/tc_traj
 et-tracker/text_files/
 et-tracker/climatology_files/
@@ -6,6 +7,7 @@ colin-plotting/
 nohup.out
 slurm*
 trajectories.txt*
+*.png
 *.gif
 *.pdf
 *.nc
