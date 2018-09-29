@@ -41,12 +41,15 @@ latmin = namelist_extract( nlfile, "latmin", "float")
 latmax = namelist_extract( nlfile, "latmax", "float")
 lonmin = namelist_extract( nlfile, "lonmin", "float")
 lonmax = namelist_extract( nlfile, "lonmax", "float")
+hrintvl = namelist_extract( nlfile, "hrintvl", "float")
 
-resol = namelist_extract( nldefaults, "resol", "float")
-hrintvl = namelist_extract( nldefaults, "hrintvl", "float")
+; Load default settings (change at your own risk...)
 critRad = namelist_extract( nldefaults, "critRad", "float")
 eps = namelist_extract( nldefaults, "eps", "float")
 minlatetc = namelist_extract( nldefaults, "minlatetc", "float")
+maskspacing = namelist_extract( nldefaults, "maskspacing", "float")
+cpslevs = namelist_extract( nldefaults, "cpslevs", "float")
+extractBox = namelist_extract( nldefaults, "extractBox", "float")
 
 print(" ")
 
@@ -71,17 +74,11 @@ else
 end if
 
 ;========================================================
-; Internal defaults, change at your own risk...
+; Internal default calcs
 ;========================================================
 
 ; time interval between traj points in seconds
 del_t = hrintvl*60*60
-  
-; levels (mb) for CPS (Hart 2003) calcs (top -> bottom)
-cpslevs=(/300.0,600.0,900.0/)
-
-; spacing for creating basin-specific masks, 1.0 is fine for most applications...
-maskspacing=1.0
 
 ; pre-calculate vars for degree/radian conversions
 pi = 4.*atan(1.)
@@ -451,36 +448,40 @@ do jtc = 0,ntc-1
     minPlon=where(minPlon.lt.0,360+minPlon,minPlon)
   end if
 
-  ; compute distance traveled, speed of storm, and change in direction of motion
-  ; for times already in TC trajectory
-  do i = 1,nrows-1
 
+  do i = 1,nrows-1
+    ;========================================================
+    ; compute distance traveled, speed of storm, and change in direction of motion
+    ; for times already in TC trajectory
+    ;========================================================
     dist(i) = gc_latlon(minPlat(i),minPlon(i),minPlat(i-1),minPlon(i-1),2,4)  ; km
     ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
     d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
 
-;========================================================
-; Find thickness of the right and left hand sides of storm
-;========================================================
+    ;========================================================
+    ; Set options to pass into CPS calcs
+    ;========================================================
+    opt=0
+    opt@date=cd_calendar(time(i),3)
+    opt@id=itc
 
-opt=0
-opt@date=cd_calendar(time(i),3)
-opt@id=itc
+    ;========================================================
+    ; Find thickness of the right and left hand sides of storm
+    ;========================================================
+    B(i) = calc_B(Z_thick(i,:,:),extractBox,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
-B(i) = calc_B(Z_thick(i,:,:),10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
-
-;========================================================
-; Compute thermal wind values (Vlt and Vut)
-;========================================================
-
-rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
-Vlt(i) = rtn_tmp(0)
-Vut(i) = rtn_tmp(1)
+    ;========================================================
+    ; Compute thermal wind values (Vlt and Vut)
+    ;========================================================
+    rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,extractBox,critRad,dist(i), \
+      ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
+    Vlt(i) = rtn_tmp(0)
+    Vut(i) = rtn_tmp(1)
+    delete(rtn_tmp)
 
     ;========================================================
     ; Print various fields to screen
     ;========================================================
-  
     if (i .eq. 1) then
       print("    Press.   Lat      Lon     dist    V      ang" + \
             "     d_ang      B     Vlt     Vut     TYPE")
@@ -641,28 +642,32 @@ Vut(i) = rtn_tmp(1)
         break
       end if
 
-;========================================================
-; Find thickness of the right and left hand sides of storm
-;========================================================
-opt=0
-opt@date=cd_calendar(time(i),3)
-opt@id=itc
+      ;========================================================
+      ; Set options to pass into CPS calcs
+      ;========================================================
+      opt=0
+      opt@date=cd_calendar(time(i),3)
+      opt@id=itc
 
-B(i) = calc_B(Z_thick(i,:,:),10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
+      ;========================================================
+      ; Find thickness of the right and left hand sides of storm
+      ;========================================================
+      B(i) = calc_B(Z_thick(i,:,:),extractBox,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
 
-;========================================================
-; Compute thermal wind values (Vlt and Vut)
-;========================================================
-
-rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,10.,critRad,dist(i),ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
-Vlt(i) = rtn_tmp(0)
-Vut(i) = rtn_tmp(1)
+      ;========================================================
+      ; Compute thermal wind values (Vlt and Vut)
+      ;========================================================
+      rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,extractBox,critRad,dist(i), \
+        ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
+      Vlt(i) = rtn_tmp(0)
+      Vut(i) = rtn_tmp(1)
+      delete(rtn_tmp)
 
       ;========================================================
       ; Print various fields to screen
       ;========================================================
- 
-print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i),V(i),ang(i),d_ang(i),B(i),Vlt(i),Vut(i),"ETC")
+      print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i), \
+        V(i),ang(i),d_ang(i),B(i),Vlt(i),Vut(i),"ETC")
 
       ;========================================================
       ; Plot storm
