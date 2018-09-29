@@ -26,10 +26,10 @@ print(" ")
 type="era"
 ; trajectory directory
 tdir = "./tc-tracking/"
-tfile = "new.txt"
+tfile = "tc_traj"
 ; data directory
-dir = "/global/homes/c/czarzyck/scratch/et-hyperion/"
-fname1 = "CORI.VR28.NATL.EXT.CAM5.4CLM5.0.dtime900.003.cam.h7."
+dir = "/glade/u/home/zarzycki/scratch/TEST-ET2/"
+fname1 = "f.asd2017.cesm20b05.FAMIPC6CLM5.mp15a-120a-US_t12.exp213.cam.h7."
 
 print(" ")
 
@@ -38,8 +38,8 @@ print(" ")
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
   print("You did not feed in year_min_str or year_max_str, so using debug/default")
-  year_min = 1987
-  year_max = 1987
+  year_min = 2010
+  year_max = 2012
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
@@ -51,7 +51,7 @@ do_debug=False
 ; analyzing an entire year of data in final analysis.
 ; Other months are useful for testing over shorter
 ; interval or a particular storm
-month_min = 3
+month_min = 1
 month_max = 12
 
 ; Final year of data, only used if a storm starts
@@ -70,7 +70,7 @@ basin = -1
 latmin=-80.0
 latmax=80.0  
 lonmin=-180.0
-lonmax=180.0
+lonmax=360.0
   
 ; resolution
 resol = 0.25                 ; approximate resolution (deg) of the data (does not need to be exact).
@@ -287,9 +287,9 @@ end if
   ; convert start time to match data calendar format
 
   OPT=0
-  OPT@calendar="gregorian"
+  OPT@calendar="noleap"
   s_time = cd_inv_calendar(s_year(itc),s_month(itc),s_day(itc),s_hour(itc),0,0, \
-                           "days since 1984-01-01 00:00:00",OPT)
+                           "days since 1979-01-01 00:00:00",OPT)
   s_date = sprinti("%0.4i",s_year)+sprinti("%0.2i",s_month)+sprinti("%0.2i",s_day)
 
 
@@ -385,8 +385,7 @@ end if
 	wgt = cos((Z3&lat)*deg2rad)
 
   ; flip longitude for geopotential height 
-	;Znew = lonFlip(Znew)
-	Z = Z3(:,:,:,{lonmin-eps:lonmax}) 
+	Z = Z3(:,:,:,{lonmin-eps:lonmax})
   delete([/Z3/])
 
 if (do_debug) then
@@ -410,8 +409,8 @@ end if
 	VBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
 
   ; flip longitude
-	;UBOT_in = lonFlip(UBOT_in)
-	;VBOT_in = lonFlip(VBOT_in)
+;	UBOT_in = lonPivot(UBOT_in,180)
+;	VBOT_in = lonPivot(VBOT_in,180)
 	UBOT = UBOT_in(:,:,{lonmin-eps:lonmax})
 	VBOT = VBOT_in(:,:,{lonmin-eps:lonmax})
 	delete([/UBOT_in,VBOT_in/])  
@@ -454,7 +453,7 @@ end if
 
 	; flip longitude for sea level pressure  
 	PSL_all = input1[:]->PSL({s_time:e_time},{latmin:latmax},:)
-	;PSL_all = lonFlip(PSL_all)
+;	PSL_all = lonPivot(PSL_all,180)
 	PSL_in = PSL_all(:,:,{lonmin-eps:lonmax})
     
   date = cd_calendar(input1[:]->time({s_time:e_time}),-2)
@@ -528,6 +527,7 @@ end if
   minP(0:nrows-1) = tsub(:,4)      ; minimum pressure values
   minPlat(0:nrows-1) = tsub(:,2)   ; latitude of minimum pressure
   minPlon(0:nrows-1) = tsub(:,1)   ; longitude of minimum pressure
+  ;minPlon=where(minPlon.lt.0,360+minPlon,minPlon)
   V(0:nrows-1) = tsub(:,3)         ; max wind speed
 
   delete(tsub)
@@ -698,7 +698,7 @@ if (do_debug) then
 end if
 
         ; plot all local mins for debugging
-        plot_test = True
+        plot_test = False
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
           et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
@@ -878,7 +878,7 @@ if (do_debug) then
   wcStrtSub = systemfunc("date")
 end if
 
-  plot_phase = True
+  plot_phase = False
   if (plot_phase) then
     system("mkdir phase_plots")
     system("rm -f ./phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
