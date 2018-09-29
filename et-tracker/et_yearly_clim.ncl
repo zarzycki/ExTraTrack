@@ -27,7 +27,7 @@ print(" ")
   numconsec = 3       ; number of consecutive B/VLT flips to consider ET final
 
 ; TC trajectory file
-  tfile = "./tc-tracking/new.txt"
+  tfile = "./tc-tracking/tc_traj"
 
 ; ETC trajectory file
   etfile = "./text_files/traj_et_era_avg"
@@ -247,7 +247,7 @@ do loop_ind = 0,ntc-1
 ; select appropriate basin based on trajectory lat/lon
 ; analyze only north atlantic basin storms, skip all others
   
-  basin = 4
+  basin = 1
   maskspacing=1.0
   tcMask = mask_tc(0,-999,-999,maskspacing,360)
 
