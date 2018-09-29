@@ -261,7 +261,7 @@ do loop_ind = 0,ntc-1
 	delete([/tsub,nrows,basin,maskspacing,tcMask,orilat,orilon/])
 	print("  Wrong basin")
 	continue
-  else if (tsub(nrows-1,2) .lt. 20) then
+  else if (abs(tsub(nrows-1,2)) .lt. 20) then
     n_atl = n_atl + 1
     n_tc = n_tc + 1
     m_atl = m_atl + 1

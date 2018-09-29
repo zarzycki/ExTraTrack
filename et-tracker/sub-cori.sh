@@ -11,7 +11,7 @@
 #>#PBS -l select=1:ncpus=36:mem=109GB
 ################################################################
 #SBATCH -N 1                #Use 2 nodes
-#SBATCH -t 08:57:00         #Set 30 minute time limit
+#SBATCH -t 09:57:00         #Set 30 minute time limit
 #SBATCH -q premium          #Use the regular QOS
 #SBATCH -L SCRATCH          #Job requires $SCRATCH file system
 #SBATCH -C haswell   #Use KNL nodes in quad cache format (default, recommended)
@@ -22,7 +22,7 @@ starttime=$(date -u +"%s")
 module load parallel
 module load ncl 
 
-NUMCORES=12
+NUMCORES=11
 TIMESTAMP=`date +%s%N`
 COMMANDFILE=commands.${TIMESTAMP}.txt
 
@@ -32,7 +32,7 @@ TYPECAPS=EXT
 
 for DATA_YEAR in $(eval echo {$STYR..$ENYR})
 do
-  NCLCOMMAND="ncl reanalysis_et_cyclone_traj.NEW.ncl 'typecaps=\"${TYPECAPS}\"' 'year_min_str=\"${DATA_YEAR}\"' 'year_max_str=\"${DATA_YEAR}\"'"
+  NCLCOMMAND="ncl reanalysis_et_cyclone_traj.ncl 'typecaps=\"${TYPECAPS}\"' 'year_min_str=\"${DATA_YEAR}\"' 'year_max_str=\"${DATA_YEAR}\"'"
   echo ${NCLCOMMAND} >> ${COMMANDFILE}
 done
 
@@ -41,7 +41,7 @@ parallel --jobs ${NUMCORES} -u < ${COMMANDFILE}
 endtime=$(date -u +"%s")
 tottime=$(($endtime-$starttime))
 
-rm ${COMMANDFILE}
+#rm ${COMMANDFILE}
 
 printf "${tottime}\n" >> timing.txt
 

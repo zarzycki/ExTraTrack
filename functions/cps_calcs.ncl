@@ -125,6 +125,13 @@ begin
     ; cyclone thermal symmetry parameter (Eq. 2, Hart 2003) using weighted average
     B = wgt_areaave(Zr,qq_wgt,1.0,0) - wgt_areaave(Zl,qq_wgt,1.0,0)
   
+    ; if southern hemisphere, h needs to be negative per Evans and Hart.
+    ;Evans, J.L. and R.E. Hart, 2003: Objective Indicators of the Life Cycle Evolution
+    ;of Extratropical Transition for Atlantic Tropical Cyclones. Mon. Wea. Rev., 131, 909–925,
+    if (minPlat .lt. 0)
+      B = -B
+    end if
+
     delete([/Zl,Zr/])
 
 return(B)

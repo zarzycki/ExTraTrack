@@ -61,7 +61,7 @@ data_year_max = 2014
 ; Here you can specify the basin that needs to be loaded. negative means all basins, 
 ; 1 = NATL, 2 = EPAC, 3 = CPAC, 4 = WPAC...
 ; NOTE, if you change basin from NATL, you will need to change that latmin/latmax
-basin = -1
+basin = 6
 ; set lat/lon boundaries to avoid loading unnecessary data
 ;latmin=0.0
 ;latmax=85.0  
@@ -253,7 +253,7 @@ do jtc = 0,ntc-1
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask,orilat,orilon/])
       continue
-    else if (tsub(nrows-1,2) .lt. 20.0) then
+    else if (abs(tsub(nrows-1,2)) .lt. 20.0) then
       print("      Storm dissipates... skipping storm")
       print(" ")
       delete([/tsub,nrows,maskspacing,tcMask/])
