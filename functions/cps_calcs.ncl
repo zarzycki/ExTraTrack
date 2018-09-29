@@ -242,3 +242,27 @@ begin
 end
 
 
+
+
+undef("get_sizeRad_from_lat")
+function get_sizeRad_from_lat(
+  minPlat[1] : numeric
+)
+local radlatcuts,radsrccuts
+
+begin
+  ; search radius lat thresholds
+  radlatcuts=(/20.0 ,-99.9, 45.0/)
+  radsrccuts=(/300.0,500.0,700.0/)
+  if ( minPlat .lt. radlatcuts(0) ) then
+    rad_tmp=radsrccuts(0)
+  else if ( minPlat .ge. minPlat ) then
+    rad_tmp=radsrccuts(2)
+  else
+    rad_tmp=radsrccuts(1)
+  end if
+  end if
+  return(rad_tmp)
+end
+
+

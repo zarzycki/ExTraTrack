@@ -48,7 +48,7 @@ print(" ")
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 2012
+  year_min = 1980
   year_max = 2012
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
@@ -65,7 +65,7 @@ else
 end if
 
 ;========================================================
-; Internal calculations, probably do not need to change...
+; Internal defaults, change at your own risk...
 ;========================================================
 
 ; time interval between traj points in seconds
@@ -77,14 +77,13 @@ eps = 0.0001
 ; minimum latitude (abs) for calculating ETC parms past TC lifecycle
 minlatetc=20.0
 
-; search radius lat thresholds
-radlatcuts=(/20.0 ,-99.9, 45.0/)
-radsrccuts=(/300.0,500.0,700.0/)
+; levels (mb) for CPS (Hart 2003) calcs (top -> bottom)
+cpslevs=(/300.0,600.0,900.0/)
 
 ; spacing for creating basin-specific masks, 1.0 is fine for most applications...
 maskspacing=1.0
 
-; info for degree/radian conversions
+; pre-calculate vars for degree/radian conversions
 pi = 4.*atan(1.)
 d2r = pi/180.
 r2d = (1./d2r)
@@ -200,14 +199,7 @@ lat = fspan(latmin,latmax,nlat)
 rad = new(nlat,float)
 
 do jlat = 0,nlat-1     ; loop over all lats
-if (lat(jlat) .lt. radlatcuts(0)) then       ; 300 km storm diameter near equator
-  rad(jlat) = radsrccuts(0)
-else if (lat(jlat) .ge. radlatcuts(2)) then  ; 700 km storm diameter in midlatitudes
-  rad(jlat) = radsrccuts(2)
-else                              ; 500 km storm diameter in between
-  rad(jlat) = radsrccuts(1)
-end if
-end if
+  rad(jlat) = get_sizeRad_from_lat(lat(jlat))
 end do
 
 delete([/lat,nlat,jlat/])
@@ -253,12 +245,12 @@ do jtc = 0,ntc-1
     if (tcMask({orilat},{orilon}) .ne. basin) then
       print("     "+tcMask({orilat},{orilon})+" != "+basin+"... Not relevant basin... skipping storm")
       print(" ")
-      delete([/tsub,nrows,maskspacing,tcMask,orilat,orilon/])
+      delete([/tsub,nrows,tcMask,orilat,orilon/])
       continue
     else if (abs(tsub(nrows-1,2)) .lt. minlatetc) then
       print("      Storm dissipates... skipping storm")
       print(" ")
-      delete([/tsub,nrows,maskspacing,tcMask/])
+      delete([/tsub,nrows,tcMask/])
       continue
     end if
     end if
@@ -266,7 +258,7 @@ do jtc = 0,ntc-1
     print("     "+tcMask({orilat},{orilon})+" = "+basin+"... matching basin, tracking storm")
     print(" ")
 
-    delete([/maskspacing,tcMask/])
+    delete([/tcMask/])
 
   end if
 
@@ -345,14 +337,13 @@ do jtc = 0,ntc-1
   logp = log(pnew*100.)   ; convert p from hPa to Pa and take log
 
   ; assign indices to be used later
-	indtop = closest_val(300.,pnew)      ; top index for VTU
-	indmid = closest_val(600.,pnew)      ; bottom index for VTU, top index for B, VTL
-	indbot = closest_val(900.,pnew)      ; bottom index for B, VTL
+	indtop = closest_val(cpslevs(0),pnew)      ; top index for VTU
+	indmid = closest_val(cpslevs(1),pnew)      ; bottom index for VTU, top index for B, VTL
+	indbot = closest_val(cpslevs(2),pnew)      ; bottom index for B, VTL
 	print(indtop+" "+indmid+" "+indbot)
 	
 	; compute weights from latitudes  
-	deg2rad = 4.0*atan(1.0)/180.0
-	wgt = cos((Z3&lat)*deg2rad)
+	wgt = cos((Z3&lat)*d2r)
 
   ; flip longitude for geopotential height 
 	Z = Z3(:,:,:,{lonmin-eps:lonmax})
@@ -391,6 +382,19 @@ do jtc = 0,ntc-1
   lon_in = input1[0]->lon({lonmin-eps:lonmax})
   lat = tofloat(lat_in)
   lon = tofloat(lon_in)
+
+  ; attempt to check whether data is -180-180 or 0-360.
+  ; lonpos = True  --> 0-360
+  ; lonpos = False --> -180-180
+  ; NOTE: for regional data, we may not know, set to False to keep lat/lon as in traj file
+  if (max(lon) .gt. 180.0) then
+    lonpos=True
+  else if (min(lon) .lt. 0.0) then
+    lonpos=False
+  else
+    lonpos=False
+  end if
+  end if
   copy_VarMeta(lat_in,lat)
   copy_VarMeta(lon_in,lon)
 	delete([/lat_in,lon_in/])
@@ -453,10 +457,14 @@ do jtc = 0,ntc-1
   minP(0:nrows-1) = tsub(:,4)      ; minimum pressure values
   minPlat(0:nrows-1) = tsub(:,2)   ; latitude of minimum pressure
   minPlon(0:nrows-1) = tsub(:,1)   ; longitude of minimum pressure
-  ;minPlon=where(minPlon.lt.0,360+minPlon,minPlon)
   V(0:nrows-1) = tsub(:,3)         ; max wind speed
-
   delete(tsub)
+
+  ; if we have 0->360 gridded data, let's check to see if we have -180-180 traj lon
+  ; if so, change traj data to match gridded data coords
+  if (lonpos .eq. True) then
+    minPlon=where(minPlon.lt.0,360+minPlon,minPlon)
+  end if
 
   ; compute distance traveled, speed of storm, and change in direction of motion
   ; for times already in TC trajectory
@@ -530,40 +538,20 @@ Vut(i) = rtn_tmp(1)
       PSL_tmp = PSL(i,:,:)
       UBOTMAG_tmp = UBOTMAG(i,:,:)
 
-      ; ++CMZ
-      ; rad_tmp = rad(ind(lat .eq. minPlat(i-1)))
-      if ( minPlat(i-1) .lt. radlatcuts(0) ) then
-        rad_tmp=radsrccuts(0)
-      else if ( minPlat(i-1) .ge. radlatcuts(2) ) then
-        rad_tmp=radsrccuts(2)
-      else
-        rad_tmp=radsrccuts(1)
-      end if
-      end if
-
-      ;do jlat = 0,nlat-1
-      ;do jlon = 0,nlon-1
-      ;  d = gc_latlon(minPlat(i-1),minPlon(i-1),lat(jlat),lon(jlon),2,4)  ; km
-      ;  if (d .gt. rad_tmp) then
-      ;    PSL_tmp(jlat,jlon) = PSL_tmp@_FillValue  ; set points outside radius to missing
-      ;    UBOTMAG_tmp(jlat,jlon) = UBOTMAG_tmp@_FillValue
-      ;  end if
-      ;end do
-      ;end do
-lat2d=conform_dims((/nlat,nlon/),lat,0)
-lon2d=conform_dims((/nlat,nlon/),lon,1)
-d = gc_latlon(minPlat(i-1),minPlon(i-1),lat2d,lon2d,2,4)  ; km
-PSL_tmp=where(d.gt.rad_tmp,PSL_tmp@_FillValue,PSL_tmp)
-UBOTMAG_tmp=where(d.gt.rad_tmp,UBOTMAG_tmp@_FillValue,UBOTMAG_tmp)
-delete(d)
-delete(lat2d)
-delete(lon2d)
+      ; get radius for storm size given latitude
+      ; Mask PS and UBOT arrays based on radius as a function of latitude.
+      rad_tmp=get_sizeRad_from_lat(minPlat(i-1))
+      lat2d=conform_dims((/nlat,nlon/),lat,0)
+      lon2d=conform_dims((/nlat,nlon/),lon,1)
+      d = gc_latlon(minPlat(i-1),minPlon(i-1),lat2d,lon2d,2,4)  ; km
+      PSL_tmp=where(d.gt.rad_tmp,PSL_tmp@_FillValue,PSL_tmp)
+      UBOTMAG_tmp=where(d.gt.rad_tmp,UBOTMAG_tmp@_FillValue,UBOTMAG_tmp)
 
       ; find max wind speed
       V_tmp = max(UBOTMAG_tmp)
 
-      ;delete([/d,rad_tmp,jlat,jlon,UBOTMAG_tmp/])
-      delete([/rad_tmp,UBOTMAG_tmp/])
+      ; clean up
+      delete([/d,lat2d,lon2d,rad_tmp,UBOTMAG_tmp/])
 
       ;========================================================
       ; Find all local pressure minimums
