@@ -63,12 +63,9 @@ data_year_max = 2014
 ; NOTE, if you change basin from NATL, you will need to change that latmin/latmax
 basin = 6
 ; set lat/lon boundaries to avoid loading unnecessary data
-;latmin=0.0
-;latmax=85.0  
-;lonmin=-120.0
-;lonmax=30.0
 latmin=-80.0
 latmax=80.0  
+; lonmax -180->360 should cover both -180-180 and 0-360 lat/lon netCDFs...
 lonmin=-180.0
 lonmax=360.0
   
@@ -274,13 +271,6 @@ do jtc = 0,ntc-1
   ; Find start time
   ;========================================================
 
-if (do_debug) then
-  PRINTSTRING="finding start time"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
-  
-
   ; convert longitude (0 to 360) to (-180 to 180)
   tsub(:,1) = where(tsub(:,1) .gt. 180, tsub(:,1) - 360, tsub(:,1))
   
@@ -310,21 +300,9 @@ end if
   
   delete(end_date)
 
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-
-
   ;========================================================
   ; Load input files
   ;========================================================
-
-if (do_debug) then
-  PRINTSTRING="loading files into memory"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
 
   ; find previous month for selecting h2 files and convert to strings
   s_mon_prev = sprinti("%0.2i",s_month(itc)-1)
@@ -344,22 +322,9 @@ end if
   
   delete([/e_year,e_mon_str,s_mon_prev,s_mon_str/])
 
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-
   ;========================================================
   ; Load Z and interpolate to pressure levels
   ;========================================================
-
-if (do_debug) then
-  PRINTSTRING="load Z and interpolate to pressure levels"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
-
-
 
 	; read in data for Z levels
 	input1 = addfiles(files1,"r")
@@ -388,21 +353,9 @@ end if
 	Z = Z3(:,:,:,{lonmin-eps:lonmax})
   delete([/Z3/])
 
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-
-
   ;========================================================
   ; Load data and calculate UMAG
   ;========================================================
-
-if (do_debug) then
-  PRINTSTRING="Load data and calculate UMAG"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
 
 	; load wind speeds at lowermost model level
 	UBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
@@ -420,23 +373,10 @@ end if
   copy_VarMeta(UBOT,UBOTMAG)
 
 	delete([/UBOT,VBOT/])
-
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-  
-
           
   ;========================================================
   ; Load data and preallocate some arrays
   ;========================================================
-
-if (do_debug) then
-  PRINTSTRING="Load data and preallocate some arrays"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
 
   ; time and lat/lon arrays
   time = input1[:]->time({s_time:e_time})
@@ -449,7 +389,6 @@ end if
   copy_VarMeta(lat_in,lat)
   copy_VarMeta(lon_in,lon)
 	delete([/lat_in,lon_in/])
-
 
 	; flip longitude for sea level pressure  
 	PSL_all = input1[:]->PSL({s_time:e_time},{latmin:latmax},:)
@@ -477,22 +416,9 @@ end if
   Z_thick&lat = lat
   Z_thick&lon = lon
 
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-
-
-
   ;========================================================
   ; Preallocate arrays
   ;======================================================== 
-
-if (do_debug) then
-  PRINTSTRING="Preallocate arrays"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
 
   ; record dimension sizes
   ntime = dimsizes(time)  ; time
@@ -512,11 +438,6 @@ end if
   Vut     = new(ntime,float)   ; upper troposphere thermal wind (Hart 2003)
   ang_all = new((/nlat,nlon/),float) ; angle of all values from storm center
  
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-
   ;========================================================
   ; Compute values during TC tracker
   ;======================================================== 
@@ -536,21 +457,9 @@ end if
   ; for times already in TC trajectory
   do i = 1,nrows-1
 
-if (do_debug) then
-  print("doing row "+i)
-  PRINTSTRING="early calcs"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
-
     dist(i) = gc_latlon(minPlat(i),minPlon(i),minPlat(i-1),minPlon(i-1),2,4)  ; km
     ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
     d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
-
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
 
 ;========================================================
 ; Find thickness of the right and left hand sides of storm
@@ -607,11 +516,6 @@ Vut(i) = rtn_tmp(1)
   ; loop over all times after TC tracker ends
   do i = nrows,ntime-1
 
-if (do_debug) then
-  print("Starting time: "+i)
-  wcStrt = systemfunc("date")
-end if
-
     if (minPlat(i-1) .ge. (latmax-10.) .or. minPlon(i-1) .ge. (lonmax-10.) .or. \
            minPlat(i-1) .le. (latmin+10.) .or. minPlon(i-1) .le. (lonmin+10.)) then
       print("Done tracking storm since it exited our available domain...")
@@ -631,12 +535,6 @@ end if
         rad_tmp=500.
       end if
       end if
-      ; --CMZ
-
-if (do_debug) then
-  print("Starting masking operation")
-  wcStrtSub = systemfunc("date")
-end if
 
       ;do jlat = 0,nlat-1
       ;do jlon = 0,nlon-1
@@ -656,11 +554,6 @@ delete(d)
 delete(lat2d)
 delete(lon2d)
 
-if (do_debug) then
-  print("...ending masking operation")
-  wallClockElapseTime(wcStrtSub, "masking", 0)
-end if
-
       ; find max wind speed
       V_tmp = max(UBOTMAG_tmp)
 
@@ -672,30 +565,13 @@ end if
       ;========================================================
 
       ; find location of pressure minimums
-if (do_debug) then
-  PRINTSTRING="pmin search"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
-
       locmin = local_min(PSL_tmp,False,0.0)
-  
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
 
       ; if pressure minimums exist, choose the best one
       if (locmin(0) .gt. 0) then
         locmin_lat = lat(locmin@yi)    ; latitudes of local mins
         locmin_lon = lon(locmin@xi)    ; longitudes of local mins
         nmins = dimsizes(locmin_lat)   ; number of local mins
-
-if (do_debug) then
-  PRINTSTRING="plot local mins"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
 
         ; plot all local mins for debugging
         plot_test = False
@@ -704,11 +580,6 @@ end if
           et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
                 PSL_tmp,PSL(i,:,:))
         end if
-
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
 
         ;========================================================
         ; Test if each local min is a valid storm
@@ -720,12 +591,6 @@ end if
         dist_tmp = new(nmins,float)       ; distance traveled (km)
         ang_tmp = new(nmins,float)        ; storm bearing (degrees)
         d_ang_tmp = new(nmins,float)      ; change in bearing (degrees)
-  
-if (do_debug) then
-  PRINTSTRING="pmin testing"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
   
         ; loop over all local minimums
         do jmin = 0,nmins-1
@@ -742,27 +607,14 @@ end if
                      dist_tmp(jmin),d_ang_tmp(jmin))
         end do
   
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
-
         delete(jmin)
   
         locmin_true = ind(locmin_test)   ; gather indices where storm is valid
 
 
-  
-
-
         ;========================================================
         ; Choose best storm (valid + lowest pressure)
         ;========================================================
-if (do_debug) then
-  PRINTSTRING="best storm choice"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
 
         if (.not. all(ismissing(locmin_true))) then
           minPind = ind(minP_tmp .eq. min(minP_tmp(locmin_true)))  ; choose lowest pressure
@@ -810,10 +662,6 @@ end if
         delete([/PSL_tmp,locmin/])
         break
       end if
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
 
 ;========================================================
 ; Find thickness of the right and left hand sides of storm
@@ -872,23 +720,12 @@ print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i),V(i),ang(i),d_ang(i),B(i
   ; Plot phase space diagram
   ;========================================================
 
-if (do_debug) then
-  PRINTSTRING="phase plotting"
-  print("Starting "+PRINTSTRING)
-  wcStrtSub = systemfunc("date")
-end if
-
   plot_phase = False
   if (plot_phase) then
     system("mkdir phase_plots")
     system("rm -f ./phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
     et_phase_plot(type,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
   end if
-
-if (do_debug) then
-  print("...ending "+PRINTSTRING)
-  wallClockElapseTime(wcStrtSub, PRINTSTRING, 0)
-end if
 
   delete([/date/])
   
