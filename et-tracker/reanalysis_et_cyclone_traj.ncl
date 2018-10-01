@@ -10,6 +10,7 @@ load "../functions/et_track_checks.ncl"
 load "../functions/et_phase_plot.ncl"
 load "../functions/cps_calcs.ncl"
 load "../functions/namelist_extract.ncl"
+load "/glade/u/home/zarzycki/snow-tracking/tracking/fcns-extract-storm.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
@@ -33,6 +34,7 @@ dir = namelist_extract( nlfile, "dir", "string")
 fname1 = namelist_extract( nlfile, "fname1", "string")
 ftimeunits = namelist_extract( nlfile, "ftimeunits", "string")
 ftimecal = namelist_extract( nlfile, "ftimecal", "string")
+filelist = namelist_extract( nlfile, "filelist", "string")
 
 data_year_max = namelist_extract( nlfile, "data_year_max", "integer")
 basin = namelist_extract( nlfile, "basin", "integer")
@@ -57,14 +59,14 @@ print(" ")
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 1980
+  year_min = 2010
   year_max = 2012
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
 end if
-if (.not. isdefined("month_min") .or. .not. isdefined("month_max"))
+if (.not. isdefined("month_min_str") .or. .not. isdefined("month_max_str"))
   month_min = 1
   month_max = 12
   print("No CLI month_min_str / month_max_str, using hardcoded: "+month_min+"   "+month_max)
@@ -88,6 +90,13 @@ r2d = (1./d2r)
 ; debugging
 plot_test = False
 do_debug=False
+
+;========================================================
+; Build lookup table from files
+;========================================================
+
+filel=asciiread(filelist,-1,"string")
+timeArr=buildTimeLookup(filel)
 
 ;========================================================
 ; Read in storm trajectories from Colins file
@@ -283,23 +292,32 @@ do jtc = 0,ntc-1
   ; Load input files
   ;========================================================
 
-  ; find previous month for selecting h2 files and convert to strings
-  s_mon_prev = sprinti("%0.2i",s_month(itc)-1)
-  s_mon_str = sprinti("%0.2i",s_month(itc))
-  s_year_prev = s_year(itc)-1
+  this_tmp1=getFileAndTimeFromLookup(timeArr,s_time)
+  this_tmp2=getFileAndTimeFromLookup(timeArr,e_time)
+  print("... files: "+this_tmp1[0]+" to "+this_tmp2[0])
+  print("... file indices: "+ind(filel.eq.this_tmp1[0])+" to "+ind(filel.eq.this_tmp2[0]))
+  files1=filel(ind(filel.eq.this_tmp1[0]):ind(filel.eq.this_tmp2[0]))
+  delete([/this_tmp1,this_tmp2,e_year,e_mon_str/])
 
-  ; read in data, selecting only necessary months
-  if (s_year(itc) .ne. e_year) then
-    files1 = systemfunc("ls "+dir+"/"+ \
-              fname1+s_year(itc)+"-{"+s_mon_str+"..12}*.nc "+ \
-              dir+"/"+ \
-              fname1+e_year+"-{01.."+e_mon_str+"}*.nc")
-  else
-    files1 = systemfunc("ls "+dir+"/"+ \
-              fname1+s_year(itc)+"-"+"{"+s_mon_str+".."+e_mon_str+"}*.nc")
-  end if
-  
-  delete([/e_year,e_mon_str,s_mon_prev,s_mon_str/])
+
+
+;>>>   ; find previous month for selecting h2 files and convert to strings
+;>>>   s_mon_prev = sprinti("%0.2i",s_month(itc)-1)
+;>>>   s_mon_str = sprinti("%0.2i",s_month(itc))
+;>>>   s_year_prev = s_year(itc)-1
+;>>> 
+;>>>   ; read in data, selecting only necessary months
+;>>>   if (s_year(itc) .ne. e_year) then
+;>>>     files1 = systemfunc("ls "+dir+"/"+ \
+;>>>               fname1+s_year(itc)+"-{"+s_mon_str+"..12}*.nc "+ \
+;>>>               dir+"/"+ \
+;>>>               fname1+e_year+"-{01.."+e_mon_str+"}*.nc")
+;>>>   else
+;>>>     files1 = systemfunc("ls "+dir+"/"+ \
+;>>>               fname1+s_year(itc)+"-"+"{"+s_mon_str+".."+e_mon_str+"}*.nc")
+;>>>   end if
+;>>>   
+;>>>   delete([/e_year,e_mon_str,s_mon_prev,s_mon_str/])
 
   ;========================================================
   ; Load Z and interpolate to pressure levels
