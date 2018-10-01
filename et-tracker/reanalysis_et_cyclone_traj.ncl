@@ -30,10 +30,6 @@ nldefaults="./nl-defaults/nl.defaults"
 type = namelist_extract( nlfile, "type", "string")
 tdir = namelist_extract( nlfile, "tdir", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
-dir = namelist_extract( nlfile, "dir", "string")
-fname1 = namelist_extract( nlfile, "fname1", "string")
-ftimeunits = namelist_extract( nlfile, "ftimeunits", "string")
-ftimecal = namelist_extract( nlfile, "ftimecal", "string")
 filelist = namelist_extract( nlfile, "filelist", "string")
 
 data_year_max = namelist_extract( nlfile, "data_year_max", "integer")
@@ -97,6 +93,30 @@ do_debug=False
 
 filel=asciiread(filelist,-1,"string")
 timeArr=buildTimeLookup(filel)
+
+;========================================================
+; Get time units/calendar attributes from "file 0"
+;========================================================
+
+ftimetmp = addfile(filel(0),"r")
+
+if (isatt(ftimetmp->time,"units")) then
+  ftimeunits=ftimetmp->time@units
+else
+  print("no valid time units attribute on netcdf files, exiting...")
+end if
+
+if (isatt(ftimetmp->time,"calendar")) then
+  ftimecal=ftimetmp->time@calendar
+else
+  print("no valid time calendar attribute on netcdf files, setting to standard...")
+  ftimecal="standard"
+end if
+
+print("ftimeunits: "+ftimeunits)
+print("ftimecal: "+ftimecal)
+
+delete(ftimetmp)
 
 ;========================================================
 ; Read in storm trajectories from Colins file
@@ -723,8 +743,11 @@ do jtc = 0,ntc-1
 
   plot_phase = False
   if (plot_phase) then
-    system("mkdir phase_plots")
-    system("rm -f ./phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
+    phaseplotdir="./phase_plots/"
+    if ( toint(systemfunc("test -d "+phaseplotdir+"; echo $?")) .ne. 0 ) then
+      system("mkdir "+phaseplotdir+"/")
+    end if
+    system("rm -f "+phaseplotdir+"/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
     et_phase_plot(type,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
   end if
 
@@ -736,13 +759,16 @@ do jtc = 0,ntc-1
 
   print("Writing to trajectory ascii file...")
 
-  system("mkdir text_files")
+  textfiledir="./text_files/"
+  if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
+    system("mkdir "+textfiledir+"/")
+  end if
 
   ; remove text file if it already exists
-  system("rm -f ./text_files/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt")
+  system("rm -f "+textfiledir+"/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt")
 
   ; write header line for storm
-  write_table("./text_files/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt","w", \
+  write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt","w", \
               [/"start",i,s_year(itc),s_month(itc),s_day(itc),s_hour(itc),itc/], \
               "%s   %03i  %04i      %02i    %02i    %02i    %03i")
 
@@ -756,7 +782,7 @@ do jtc = 0,ntc-1
   st_date = cd_calendar(time(0:i-1),0)  ; get date at each time step
 
   ; write storm data to ascii file (append to header)   
-  write_table("./text_files/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt","a", \
+  write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt","a", \
     [/minPlon(0:i-1),minPlat(0:i-1),minP(0:i-1), \
     V(0:i-1),dist(0:i-1),ang(0:i-1), \
     B(0:i-1),Vlt(0:i-1),Vut(0:i-1), \
@@ -768,7 +794,7 @@ do jtc = 0,ntc-1
 
   ENDTIME=stringtointeger(systemfunc("date -u +%s"))
   TOTTIME=ENDTIME-STARTTIME
-  asciiwrite ("./text_files/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
+  asciiwrite (textfiledir+"/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
   
   delete([/i,itc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
 
