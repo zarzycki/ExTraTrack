@@ -22,12 +22,19 @@ load "../functions/fcns-extract-storm.ncl"
 begin
 print(" ")
 
-; Read namelist options from nlfile passed in as CLI
-if (.not. isdefined("nlfile")) then
+defaultnl="./namelist"
+if (isdefined("nlfile")) then
+  print("reading namelist from "+nlfile)
+else if ((.not. isdefined("nlfile")) .and. (fileexists(defaultnl))) then
+  print("using default namelist "+defaultnl)
+  nlfile=defaultnl
+else
   print("no namelist file defined, exiting...")
   print("feed in namelist file on the command line as in README")
   exit
 end if
+end if
+
 type = namelist_extract( nlfile, "type", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
 filelist = namelist_extract( nlfile, "filelist", "string")
@@ -142,6 +149,7 @@ s_year  = new(nstorms_tot,integer)
 s_month = new(nstorms_tot,integer)
 s_day   = new(nstorms_tot,integer)
 s_hour  = new(nstorms_tot,integer)
+s_id  = new(nstorms_tot,integer)
 e_year  = new(nstorms_tot,integer)
 e_month = new(nstorms_tot,integer)
 
@@ -164,6 +172,7 @@ do n1 = 0,nrows-1  ; loop over all data with header lines
     s_month(nstorm) = stringtoint(str_get_field(tdata_tmp(n1),4," "))
     s_day(nstorm)   = stringtoint(str_get_field(tdata_tmp(n1),5," "))
     s_hour(nstorm)  = stringtoint(str_get_field(tdata_tmp(n1),6," "))
+    s_id(nstorm)    = stringtoint(str_get_field(tdata_tmp(n1),7," "))
     if (n1 .ne. 0) then
       e_year(nstorm-1)  = floattoint(tdata(n2-1,5))
       e_month(nstorm-1) = floattoint(tdata(n2-1,6))
@@ -212,7 +221,8 @@ print(" ")
 ; loop over each storm
 do jtc = 0,ntc-1
   itc = jtc + ind_storm(0)
-  print("Storm Number: "+itc)
+  itcc = s_id(itc)
+  print("Storm Number: "+itcc)
   print("  "+s_year(itc)+" "+s_month(itc)+" "+s_day(itc))
 
   ; select trajectory information for individual storm
@@ -699,11 +709,11 @@ do jtc = 0,ntc-1
   ; if plotting track, combine pdfs into gif
   if (plot_track .or. plot_test) then
     system("mkdir gifs")
-    system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.3i",itc)+".gif")
+    system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif")
     system("convert -delay 50 -loop 0 -density 300 ./gifs/track_plot_"+type+"_"+ \
-           sprinti("%0.3i",itc)+"_*.pdf ./gifs/track_plot_"+type+"_"+ \
-           sprinti("%0.3i",itc)+".gif")
-    system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.3i",itc)+"_*.pdf")
+           sprinti("%0.4i",itcc)+"_*.pdf ./gifs/track_plot_"+type+"_"+ \
+           sprinti("%0.4i",itcc)+".gif")
+    system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf")
   end if
 
   ;========================================================
@@ -739,12 +749,12 @@ do jtc = 0,ntc-1
   end if
 
   ; remove text file if it already exists
-  system("rm -f "+textfiledir+"/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt")
+  system("rm -f "+textfiledir+"/tmp_"+type+"_"+sprinti("%0.4i",itcc)+".txt")
 
   ; write header line for storm
-  write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt","w", \
-              [/"start",i,s_year(itc),s_month(itc),s_day(itc),s_hour(itc),itc/], \
-              "%s   %03i  %04i      %02i    %02i    %02i    %03i")
+  write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.4i",itcc)+".txt","w", \
+              [/"start",i,s_year(itc),s_month(itc),s_day(itc),s_hour(itc),itcc/], \
+              "%s   %03i  %04i      %02i    %02i    %02i    %04i")
 
   ; reformat missing values to avoid terrible formatting in ascii file
   dist(0) = -999
@@ -756,7 +766,7 @@ do jtc = 0,ntc-1
   st_date = cd_calendar(time(0:i-1),0)  ; get date at each time step
 
   ; write storm data to ascii file (append to header)   
-  write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.3i",itc)+".txt","a", \
+  write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.4i",itcc)+".txt","a", \
     [/minPlon(0:i-1),minPlat(0:i-1),minP(0:i-1), \
     V(0:i-1),dist(0:i-1),ang(0:i-1), \
     B(0:i-1),Vlt(0:i-1),Vut(0:i-1), \
@@ -768,9 +778,9 @@ do jtc = 0,ntc-1
 
   ENDTIME=stringtointeger(systemfunc("date -u +%s"))
   TOTTIME=ENDTIME-STARTTIME
-  asciiwrite (timingfiledir+"/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
+  asciiwrite (timingfiledir+"/timing_"+type+"_"+sprinti("%0.4i",itcc)+".TIME",TOTTIME)
   
-  delete([/i,itc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
+  delete([/i,itc,itcc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
 
   print("Done with storm.")
   print(" ")
