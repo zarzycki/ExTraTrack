@@ -3,6 +3,7 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
+load "../functions/namelist_extract.ncl"
 ;========================================================
 ; reads in ET trajectories from "raw" tracker
 ; performs a running mean on B, Vut, and Vlt fields
@@ -21,16 +22,16 @@ print(" ")
 ;========================================================
 
 ; unsmoothed ET traj file
-etfile = "./text_files/traj_et_era_orig"
+etfile = namelist_extract( nlfile, "etfile", "string")
 
 ; type string (used for defining output), generally a model shortname
-typestr = "era"
+typestr = namelist_extract( nlfile, "type", "string")
 
 ; running average time period (hrs)
 hourmean = 24.
 
 ; frequency of output data (hrs)
-datafreq = 6.
+datafreq = namelist_extract( nlfile, "hrintvl", "float")
 
 ;**********************************************************************************
 
