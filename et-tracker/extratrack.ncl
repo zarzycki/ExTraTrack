@@ -10,7 +10,7 @@ load "../functions/et_track_checks.ncl"
 load "../functions/et_phase_plot.ncl"
 load "../functions/cps_calcs.ncl"
 load "../functions/namelist_extract.ncl"
-load "/global/homes/c/czarzyck/esta/tracking/fcns-extract-storm.ncl"
+load "../functions/fcns-extract-storm.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
