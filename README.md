@@ -103,9 +103,10 @@ where `reanalysis_et_cyclone_traj.ncl` points to `${TCTRAJ}`. Other user setting
 | basin | basin=1, | Only calculate CPS values for specific basin (< 0 = all basins) |
 | latmin | latmin=-80.0, | Minimum latitude to extract from gridded data |
 | latmax | latmax=80.0, | Maximum latitude to extract from gridded data |
-| lonmin | lonmin=-180.0, | Minimum longitude to extract from gridded data |
-| lonmax | lonmax=360.0, | Maximum latitude to extract from gridded data |
+| lonmin | lonmin=-180.0, | Minimum longitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
+| lonmax | lonmax=360.0, | Maximum latitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
 | hrintvl | hrintvl=6.0, | Time interval (hours) between data points |
+<a name="namelistfoot1">1</a>: If using global data, -180. -> 360. allows for all lon orderings. For more regional definitions, this will be specific to the gridded dataset coordinate conventions.
 
 REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.ncl` are:
 1. PSL (sea level pressure)
