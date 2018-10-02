@@ -18,21 +18,20 @@ load "/global/homes/c/czarzyck/esta/tracking/fcns-extract-storm.ncl"
 ; compute B, Vlt, and Vut
 ; plot track and plot phase space diagram
 ; write new ET trajectory file
-; D. Thatcher 2014/07/23
 ;========================================================
 begin
-print("et_cyclone_phase.ncl")
 print(" ")
 
-nlfile="nl.CORI"
-nldefaults="./nl-defaults/defaults.nl"
-
+; Read namelist options from nlfile passed in as CLI
+if (.not. isdefined("nlfile")) then
+  print("no namelist file defined, exiting...")
+  print("feed in namelist file on the command line as in README")
+  exit
+end if
 type = namelist_extract( nlfile, "type", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
 filelist = namelist_extract( nlfile, "filelist", "string")
-
 basin = namelist_extract( nlfile, "basin", "integer")
-
 latmin = namelist_extract( nlfile, "latmin", "float")
 latmax = namelist_extract( nlfile, "latmax", "float")
 lonmin = namelist_extract( nlfile, "lonmin", "float")
@@ -40,6 +39,7 @@ lonmax = namelist_extract( nlfile, "lonmax", "float")
 hrintvl = namelist_extract( nlfile, "hrintvl", "float")
 
 ; Load default settings (change at your own risk...)
+nldefaults="./defaults/defaults.nl"
 critRad = namelist_extract( nldefaults, "critRad", "float")
 eps = namelist_extract( nldefaults, "eps", "float")
 minlatetc = namelist_extract( nldefaults, "minlatetc", "float")
@@ -73,20 +73,19 @@ end if
 ; Internal default calcs
 ;========================================================
 
-; time interval between traj points in seconds
-del_t = hrintvl*60*60
-
 ; pre-calculate vars for degree/radian conversions
 pi = 4.*atan(1.)
 d2r = pi/180.
 r2d = (1./d2r)
 
 ; debugging
-plot_test = False
+plot_test=False
+plot_phase = False
+plot_track = False
 do_debug=False
 
 ;========================================================
-; Build lookup table from files
+; Build lookup table from files listed in filelist
 ;========================================================
 
 filel=asciiread(filelist,-1,"string")
@@ -102,6 +101,7 @@ if (isatt(ftimetmp->time,"units")) then
   ftimeunits=ftimetmp->time@units
 else
   print("no valid time units attribute on netcdf files, exiting...")
+  exit
 end if
 
 if (isatt(ftimetmp->time,"calendar")) then
@@ -113,14 +113,13 @@ end if
 
 print("ftimeunits: "+ftimeunits)
 print("ftimecal: "+ftimecal)
-
 delete(ftimetmp)
 
 ;========================================================
-; Read in storm trajectories from Colins file
+; Read in TC trajectories
 ;========================================================
 
-print("Loading storm trajectories...")
+print("Loading TC trajectories...")
 
 ; read in trajectory data from ascii file
 ; get number of storms by counting number of lines with 'start'
@@ -178,7 +177,7 @@ e_month(nstorm-1) = floattoint(tdata(n2-1,6))
 
 delete([/tdata_tmp,n1,n2,nstorms_tot,nstorm,first,nrows,ncol/])
 
-; data now contains all trajectory information with the following columns
+; tsub now contains all trajectory information with the following columns
 ; 0 = storm number
 ; 1 = longitude
 ; 2 = latitude
@@ -199,12 +198,11 @@ ind_storm = ind(((s_year .eq. year_min .and. s_month .ge. month_min) .or.  \
                 ((s_year .eq. year_max .and. s_month .le. month_max) .or.  \
                  (s_year .ge. year_min .and. s_year .lt. year_max)))
 
-
 delete([/year_min,year_max,month_min,month_max,e_year,e_month/])
 
 ntc = dimsizes(ind_storm)
-print("   Number of storms to be evaluated = "+ntc)
-print("Storm trajectories loaded.")
+print("   Number of TCs to be evaluated = "+ntc)
+print("TC trajectories loaded.")
 print(" ")
 
 ;========================================================
@@ -283,8 +281,6 @@ do jtc = 0,ntc-1
                            ftimeunits,OPT)
   s_date = sprinti("%0.4i",s_year)+sprinti("%0.2i",s_month)+sprinti("%0.2i",s_day)
 
-
-
   ; allow 21 days past the end of TC phase
   e_time = s_time + (dur(itc)/4.) + 21
   e_time@units = s_time@units
@@ -320,7 +316,7 @@ do jtc = 0,ntc-1
   end if
 
   ;========================================================
-  ; Load Z and interpolate to pressure levels
+  ; Load Z
   ;========================================================
 
 	; read in data for Z levels
@@ -357,8 +353,6 @@ do jtc = 0,ntc-1
 	VBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
 
   ; flip longitude
-;	UBOT_in = lonPivot(UBOT_in,180)
-;	VBOT_in = lonPivot(VBOT_in,180)
 	UBOT = UBOT_in(:,:,{lonmin-eps:lonmax})
 	VBOT = VBOT_in(:,:,{lonmin-eps:lonmax})
 	delete([/UBOT_in,VBOT_in/])  
@@ -366,7 +360,6 @@ do jtc = 0,ntc-1
   UBOTMAG = ((VBOT^2 + UBOT^2)^(0.5))
 
   copy_VarMeta(UBOT,UBOTMAG)
-
 	delete([/UBOT,VBOT/])
           
   ;========================================================
@@ -400,7 +393,6 @@ do jtc = 0,ntc-1
 
 	; flip longitude for sea level pressure  
 	PSL_all = input1[:]->PSL({s_time:e_time},{latmin:latmax},:)
-;	PSL_all = lonPivot(PSL_all,180)
 	PSL_in = PSL_all(:,:,{lonmin-eps:lonmax})
     
   date = cd_calendar(input1[:]->time({s_time:e_time}),-2)
@@ -465,7 +457,6 @@ do jtc = 0,ntc-1
     minPlon=where(minPlon.lt.0,360+minPlon,minPlon)
   end if
 
-
   do i = 1,nrows-1
     ;========================================================
     ; compute distance traveled, speed of storm, and change in direction of motion
@@ -516,7 +507,6 @@ do jtc = 0,ntc-1
   ; call function to create et plot
   ;========================================================
 
-  plot_track = False
   if (plot_track) then  
     do i = 0, nrows-1
       et_track_plot(type,itc,i,lat,lon,date(i),minP(i),minPlat(i),minPlon(i), \
@@ -720,7 +710,6 @@ do jtc = 0,ntc-1
   ; Plot phase space diagram
   ;========================================================
 
-  plot_phase = False
   if (plot_phase) then
     phaseplotdir="./phase_plots/"
     if ( toint(systemfunc("test -d "+phaseplotdir+"; echo $?")) .ne. 0 ) then
@@ -739,8 +728,14 @@ do jtc = 0,ntc-1
   print("Writing to trajectory ascii file...")
 
   textfiledir="./text_files/"
-  if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir "+textfiledir+"/")
+  timingfiledir="./timing_files/"
+  
+  ; make text and timing file folders if they do not exist.
+  if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
+    system("mkdir "+timingfiledir+"/")
+  end if
+  if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
+    system("mkdir "+timingfiledir+"/")
   end if
 
   ; remove text file if it already exists
@@ -773,7 +768,7 @@ do jtc = 0,ntc-1
 
   ENDTIME=stringtointeger(systemfunc("date -u +%s"))
   TOTTIME=ENDTIME-STARTTIME
-  asciiwrite (textfiledir+"/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
+  asciiwrite (timingfiledir+"/timing_"+type+"_"+sprinti("%0.3i",itc)+".TIME",TOTTIME)
   
   delete([/i,itc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
 
