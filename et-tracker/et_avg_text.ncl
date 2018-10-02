@@ -22,7 +22,7 @@ print(" ")
 ;========================================================
 
 ; unsmoothed ET traj file
-etfile = namelist_extract( nlfile, "etfile", "string")
+etfile = namelist_extract( nlfile, "etfileori", "string")
 
 ; type string (used for defining output), generally a model shortname
 typestr = namelist_extract( nlfile, "type", "string")
@@ -34,7 +34,7 @@ hourmean = 24.
 datafreq = namelist_extract( nlfile, "hrintvl", "float")
 
 ; average file
-catfile = "traj_et_"+typestr+"_avg"
+catfile = namelist_extract( nlfile, "etfileavg", "string")
 
 ;**********************************************************************************
 
@@ -157,8 +157,8 @@ do i = 0,num_tot-1
 
   textfiledir="./text_files/"
   ; make text and timing file folders if they do not exist.
-  if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir "+timingfiledir+"/")
+  if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
+    system("mkdir "+textfiledir+"/")
   end if
 
 ; remove text file if it already exists
@@ -188,7 +188,7 @@ do i = 0,num_tot-1
   
 end do  ; end storm loop
 
-  system("cat "+text_files+"/"+outfile+"* > "+text_files+"/"+catfile)
-  system("rm -f "+text_files+"/"+outfile+"*")
+  system("cat "+textfiledir+"/"+outfile+"* > "+catfile)
+  system("rm -f "+textfiledir+"/"+outfile+"*")
 	
 end

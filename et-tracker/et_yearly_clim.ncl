@@ -4,6 +4,7 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 load "../functions/mask_tc.ncl"
+load "../functions/namelist_extract.ncl"
 ;========================================================
 ; reads in TC and ET trajectories
 ; generate ET climatology text files
@@ -11,36 +12,32 @@ load "../functions/mask_tc.ncl"
 ; v0.1/cleanup C. Zarzycki 2017/08/29
 ;========================================================
 begin
-print("et_yearly_clim.ncl")
 print(" ")
 
-; choose data set to use
-  type = "era"   ; uni, var, or rea
-  year_min = 1984
-  year_max = 2014
+type = namelist_extract( nlfile, "type", "string")
+basin = namelist_extract( nlfile, "basin", "integer")
+etfile = namelist_extract( nlfile, "etfileavg", "string")
+tfile = namelist_extract( nlfile, "tfile", "string")
 
-; et phase space criteria  
-  Blim = 15.   ; limit for B defining transition (typically 10)
-  Vlim = 0.   ; limit for Vlt defining transition (typically 0)
-
-  been_tc_thres = 6   ; how many timesteps does it need to have been TC before counting
-  numconsec = 3       ; number of consecutive B/VLT flips to consider ET final
-
-; TC trajectory file
-  tfile = "./tc-tracking/tc_traj"
-
-; ETC trajectory file
-  etfile = "./text_files/traj_et_era_avg"
-
+nldefaults="./defaults/defaults.nl"
+maskspacing = namelist_extract( nldefaults, "maskspacing", "float")
+; limit for B defining transition (typically 10)
+Blim = namelist_extract( nldefaults, "Blim", "float")
+; limit for Vlt defining transition (typically 0)
+Vlim = namelist_extract( nldefaults, "Vlim", "float")
+; how many timesteps does it need to have been TC before counting
+been_tc_thres = namelist_extract( nldefaults, "been_tc_thres", "integer")
+ ; number of consecutive B/VLT flips to consider ET final
+numconsec = namelist_extract( nldefaults, "numconsec", "integer")
 
 ; set file names
-  outfile    = "storms_"+type
-  monfile    = "mon_"+type
-  monthfile  = "monthly_"+type
-  yearfile   = "yearly_"+type
-  etpathfile = "etpath_yearly_"+type
-  lifefile   = "life_"+type
-  etdetailsfile= "etdetails_"+type
+outfile    = "storms_"+type
+monfile    = "mon_"+type
+monthfile  = "monthly_"+type
+yearfile   = "yearly_"+type
+etpathfile = "etpath_yearly_"+type
+lifefile   = "life_"+type
+etdetailsfile= "etdetails_"+type
 
 ;========================================================
 ; Make subdir for climatology files
@@ -48,6 +45,12 @@ print(" ")
 
  climodir="./climatology_files/"
  system("mkdir -p "+climodir)
+
+;========================================================
+; Generate tc mask for masking basins
+;========================================================
+
+  tcMask = mask_tc(0,-999,-999,maskspacing,360)
 
 ;========================================================
 ; Read in TC-only trajectories from traj file
@@ -98,6 +101,9 @@ print(" ")
       continue
     end if
   end do
+
+  year_min=min(s_year)
+  year_max=max(s_year)
 
   delete([/tdata_tmp,n1,n2,nstorms_tot,nstorm,first,nrows,ncol/])
 
@@ -175,6 +181,7 @@ do iyear = year_min,year_max
   n_cc = 0   ; number of storms that dissipated as cold cores
   n_et = 0   ; number of storms that complete transition
   n_no = 0   ; number of storms that complete partial transition
+  n_miss = 0 ; number of missing storms
 
   et_path1=0
   et_path2=0
@@ -246,10 +253,6 @@ do loop_ind = 0,ntc-1
 
 ; select appropriate basin based on trajectory lat/lon
 ; analyze only north atlantic basin storms, skip all others
-  
-  basin = 1
-  maskspacing=1.0
-  tcMask = mask_tc(0,-999,-999,maskspacing,360)
 
   orilat=tsub(0,2)
   orilon=tsub(0,1)
@@ -257,22 +260,22 @@ do loop_ind = 0,ntc-1
     orilon=360.0-maskspacing
   end if
   
-  if (tcMask({orilat},{orilon}) .ne. basin) then
-	delete([/tsub,nrows,basin,maskspacing,tcMask,orilat,orilon/])
-	print("  Wrong basin")
-	continue
+  if (basin .gt. 0 .and. tcMask({orilat},{orilon}) .ne. basin) then
+    delete([/tsub,nrows,orilat,orilon/])
+    print("  Wrong basin")
+    continue
   else if (abs(tsub(nrows-1,2)) .lt. 20) then
     n_atl = n_atl + 1
     n_tc = n_tc + 1
     m_atl = m_atl + 1
     m_tc = m_tc + 1
     print("Storm Number: "+itc+"  TC  "+s_year(jtc)+" "+s_month(jtc)+" "+s_day(jtc))
-	delete([/tsub,nrows,basin,maskspacing,tcMask/])
-	continue
+	  delete([/tsub,nrows/])
+	  continue
   end if
   end if
 
-  delete([/tsub,basin,maskspacing,tcMask/])
+  delete([/tsub/])
 
   n_atl = n_atl + 1
   m_atl = m_atl + 1
@@ -281,10 +284,11 @@ do loop_ind = 0,ntc-1
 ; Check if ET occurs
 ;========================================================
 
-; for storm in Atlantic basin, get subset of data 
+; for storm in basin, get subset of data 
   et_ind = ind(etnum .eq. itc)
   if(all(ismissing(et_ind))) then
     print("... potentially missing data: "+itc+"  TC  "+s_year(jtc)+" "+s_month(jtc)+" "+s_day(jtc))
+    n_miss = n_miss + 1
     delete(et_ind)
     continue
   end if
@@ -509,6 +513,10 @@ end do   ; month loop
   print("    CC dissipators: "+n_cc)
   print("    ET transitions: "+n_et)
   print("    NO transitions: "+n_no)
+  if (n_miss .gt. 0) then
+    print("WARNING, MISSING ET STATS: "+n_miss)
+  end if
+
   print(" ")
 
 ; write output to text file and remove text file if it already exists
@@ -558,5 +566,8 @@ end do   ; year loop
   system("cat "+climodir+"/"+etdetailsfile+"_????.txt > "+\
              climodir+"/"+etdetailsfile+".txt")
   system("rm -f "+climodir+"/"+etdetailsfile+"_????.txt")
+
+  ; final cleanup
+  delete([/basin,maskspacing,tcMask/])
 
 end

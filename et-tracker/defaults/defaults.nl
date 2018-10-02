@@ -4,4 +4,7 @@ minlatetc=20.0,
 maskspacing=1.0,
 cpslevs=300.0,600.0,900.0,
 extractBox=10.,
-
+Blim=15.,
+Vlim=0.,
+been_tc_thres=6,
+numconsec=3,
