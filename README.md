@@ -98,7 +98,14 @@ where `reanalysis_et_cyclone_traj.ncl` points to `${TCTRAJ}`. Other user setting
 | Namelist Key | Namelist sample | Description |
 | --- | --- | --- |
 | type | type="era", | Shortcode for file naming |
-| tfile | tfile="./tc-tracking/tc_traj", | Full/relative path to `${TCTRAJ}` |
+| tfile | tfile="./tc-tracking/tc\_traj", | Full/relative path to `${TCTRAJ}` |
+| filelist | filelist="./filelist.txt", | Path to gridded netCDF files, one per line and chronologically sorted |
+| basin | basin=1, | Only calculate CPS values for specific basin (< 0 = all basins) |
+| latmin | latmin=-80.0, | Minimum latitude to extract from gridded data |
+| latmax | latmax=80.0, | Maximum latitude to extract from gridded data |
+| lonmin | lonmin=-180.0, | Minimum longitude to extract from gridded data |
+| lonmax | lonmax=360.0, | Maximum latitude to extract from gridded data |
+| hrintvl | hrintvl=6.0, | Time interval (hours) between data points |
 
 REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.ncl` are:
 1. PSL (sea level pressure)
