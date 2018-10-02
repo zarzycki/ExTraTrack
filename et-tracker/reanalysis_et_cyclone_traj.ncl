@@ -28,11 +28,9 @@ nlfile="nl.ASD.mp120a"
 nldefaults="./nl-defaults/nl.defaults"
 
 type = namelist_extract( nlfile, "type", "string")
-tdir = namelist_extract( nlfile, "tdir", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
 filelist = namelist_extract( nlfile, "filelist", "string")
 
-data_year_max = namelist_extract( nlfile, "data_year_max", "integer")
 basin = namelist_extract( nlfile, "basin", "integer")
 
 latmin = namelist_extract( nlfile, "latmin", "float")
@@ -126,14 +124,14 @@ print("Loading storm trajectories...")
 
 ; read in trajectory data from ascii file
 ; get number of storms by counting number of lines with 'start'
-nstorms_tot = stringtoint(systemfunc("grep 'start' "+tdir+tfile+" | wc -l"))
+nstorms_tot = stringtoint(systemfunc("grep 'start' "+tfile+" | wc -l"))
 print("   Total number of storms = "+nstorms_tot)
 
-tdata_tmp = asciiread(tdir+tfile,-1,"string")  ; read in trajectory data as strings
+tdata_tmp = asciiread(tfile,-1,"string")  ; read in trajectory data as strings
 dims = dimsizes(tdata_tmp)    ; get dimensions
 nrows = dims(0)               ; get number of rows
 ncol = 8                      ; assign number of columns
-delete([/tdir,tfile,dims/])
+delete([/tfile,dims/])
 
 ; create new array that will hold all data except rows containing start information
 ; add column to contain storm number
@@ -196,17 +194,11 @@ delete([/tdata_tmp,n1,n2,nstorms_tot,nstorm,first,nrows,ncol/])
 ;========================================================
   
 ; find indices where data is between given year/month min and max
-if (year_max .eq. data_year_max) then
-  ind_storm = ind(((s_year .eq. year_min .and. s_month .ge. month_min) .or.  \
-                 (s_year .gt. year_min .and. s_year .le. year_max)) .and. \
-                ((s_year .eq. year_max .and. e_month .le. month_max) .or.  \
-                 (s_year .ge. year_min .and. s_year .lt. year_max)))
-else
-  ind_storm = ind(((s_year .eq. year_min .and. s_month .ge. month_min) .or.  \
+ind_storm = ind(((s_year .eq. year_min .and. s_month .ge. month_min) .or.  \
                  (s_year .gt. year_min .and. s_year .le. year_max)) .and. \
                 ((s_year .eq. year_max .and. s_month .le. month_max) .or.  \
                  (s_year .ge. year_min .and. s_year .lt. year_max)))
-end if
+
 
 delete([/year_min,year_max,month_min,month_max,e_year,e_month/])
 
@@ -254,7 +246,8 @@ do jtc = 0,ntc-1
     end if
 
     if (tcMask({orilat},{orilon}) .ne. basin) then
-      print("     "+tcMask({orilat},{orilon})+" != "+basin+"... Not relevant basin... skipping storm")
+      print("  user-specified basin: "+tcMask({orilat},{orilon})+" != this traj basin: "+basin+ \
+        "... skipping storm")
       print(" ")
       delete([/tsub,nrows,tcMask,orilat,orilon/])
       continue
@@ -303,7 +296,6 @@ do jtc = 0,ntc-1
   e_year = end_date(0,0)
   
   print("TC start time: "+cd_calendar(s_time,-3))
-  ;print("TC end time: "+cd_calendar(,-3))
   print("Extended end time: "+cd_calendar(e_time,-3))
   
   delete(end_date)
@@ -312,32 +304,20 @@ do jtc = 0,ntc-1
   ; Load input files
   ;========================================================
 
-  this_tmp1=getFileAndTimeFromLookup(timeArr,s_time)
-  this_tmp2=getFileAndTimeFromLookup(timeArr,e_time)
-  print("... files: "+this_tmp1[0]+" to "+this_tmp2[0])
-  print("... file indices: "+ind(filel.eq.this_tmp1[0])+" to "+ind(filel.eq.this_tmp2[0]))
-  files1=filel(ind(filel.eq.this_tmp1[0]):ind(filel.eq.this_tmp2[0]))
-  delete([/this_tmp1,this_tmp2,e_year,e_mon_str/])
-
-
-
-;>>>   ; find previous month for selecting h2 files and convert to strings
-;>>>   s_mon_prev = sprinti("%0.2i",s_month(itc)-1)
-;>>>   s_mon_str = sprinti("%0.2i",s_month(itc))
-;>>>   s_year_prev = s_year(itc)-1
-;>>> 
-;>>>   ; read in data, selecting only necessary months
-;>>>   if (s_year(itc) .ne. e_year) then
-;>>>     files1 = systemfunc("ls "+dir+"/"+ \
-;>>>               fname1+s_year(itc)+"-{"+s_mon_str+"..12}*.nc "+ \
-;>>>               dir+"/"+ \
-;>>>               fname1+e_year+"-{01.."+e_mon_str+"}*.nc")
-;>>>   else
-;>>>     files1 = systemfunc("ls "+dir+"/"+ \
-;>>>               fname1+s_year(itc)+"-"+"{"+s_mon_str+".."+e_mon_str+"}*.nc")
-;>>>   end if
-;>>>   
-;>>>   delete([/e_year,e_mon_str,s_mon_prev,s_mon_str/])
+  if (s_time .lt. min(timeArr) .or. e_time .gt. max(timeArr)) then
+    print("Traj sttime: "+s_time+"  min gridded time: "+min(timeArr))
+    print("Traj entime: "+e_time+"  max gridded time: "+max(timeArr))
+    print("either start or end of traj lies outside available gridded data times, continuing...")
+    delete([/tsub,nrows/])
+    continue
+  else
+    this_tmp1=getFileAndTimeFromLookup(timeArr,s_time)
+    this_tmp2=getFileAndTimeFromLookup(timeArr,e_time)
+    print("... files: "+this_tmp1[0]+" to "+this_tmp2[0])
+    print("... file indices: "+ind(filel.eq.this_tmp1[0])+" to "+ind(filel.eq.this_tmp2[0]))
+    files1=filel(ind(filel.eq.this_tmp1[0]):ind(filel.eq.this_tmp2[0]))
+    delete([/this_tmp1,this_tmp2,e_year,e_mon_str/])
+  end if
 
   ;========================================================
   ; Load Z and interpolate to pressure levels
@@ -360,7 +340,6 @@ do jtc = 0,ntc-1
 	indtop = closest_val(cpslevs(0),pnew)      ; top index for VTU
 	indmid = closest_val(cpslevs(1),pnew)      ; bottom index for VTU, top index for B, VTL
 	indbot = closest_val(cpslevs(2),pnew)      ; bottom index for B, VTL
-	print(indtop+" "+indmid+" "+indbot)
 	
 	; compute weights from latitudes  
 	wgt = cos((Z3&lat)*d2r)
