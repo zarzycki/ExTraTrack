@@ -1,3 +1,5 @@
 #!/bin/bash
 
-find /glade/u/home/zarzycki/scratch/TEST-ET3/ -name "*h7*.nc" | sort -n > filelist.txt
+DIR=/global/homes/c/czarzyck/scratch/et-hyperion/
+
+find ${DIR} -name "*h7.*.nc" | sort -n > filelist.txt

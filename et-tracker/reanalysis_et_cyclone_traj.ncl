@@ -10,7 +10,7 @@ load "../functions/et_track_checks.ncl"
 load "../functions/et_phase_plot.ncl"
 load "../functions/cps_calcs.ncl"
 load "../functions/namelist_extract.ncl"
-load "/glade/u/home/zarzycki/snow-tracking/tracking/fcns-extract-storm.ncl"
+load "/global/homes/c/czarzyck/esta/tracking/fcns-extract-storm.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
@@ -24,8 +24,8 @@ begin
 print("et_cyclone_phase.ncl")
 print(" ")
 
-nlfile="nl.ASD.mp120a"
-nldefaults="./nl-defaults/nl.defaults"
+nlfile="nl.CORI"
+nldefaults="./nl-defaults/defaults.nl"
 
 type = namelist_extract( nlfile, "type", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
@@ -53,8 +53,8 @@ print(" ")
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 2010
-  year_max = 2012
+  year_min = 1984
+  year_max = 2016
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
