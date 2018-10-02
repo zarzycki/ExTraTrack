@@ -95,6 +95,10 @@ The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 
 where `reanalysis_et_cyclone_traj.ncl` points to `${TCTRAJ}`. Other user settings are described in the script. `year_min` and `year_max` can be used to parallelize the code (i.e., for a 20 year dataset) you could spawn 20 single-core jobs. Most helpful for high-resolution data with many TCs.
 
+| Namelist Key | Namelist sample | Description |
+| --- | --- | --- |
+| type | type="era", | Shortcode for file naming |
+| tfile | tfile="./tc-tracking/tc_traj", | Full/relative path to `${TCTRAJ}` |
 
 REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.ncl` are:
 1. PSL (sea level pressure)
