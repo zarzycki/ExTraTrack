@@ -26,10 +26,8 @@ To use this code, you *must* have gridded reanalysis or climate model data that 
 2. Post-process TC trajectories into ExTraTrack required text format
 3. 'Massage' gridded netCDF files to standardized, CF-compliant, ExTraTrack-supported format
 4. Build "filelist" from netCDF files
-5. Run `reanalysis_et_cyclone_traj.ncl` to extract extended tracks with CPS variables (B, VUT, VLT)
-  * Concatenate ET trajectories output from `reanalysis_et_cyclone_traj.ncl`
-6. (optional, but highly recommended) run `et_avg.ncl` to "smooth" CPS parameters
-7. Process/plot ET climatological statistics
+5. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT)
+6. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics
 
 ## Detailed procedure
 
@@ -192,6 +190,8 @@ B            ; B parameter (Hart 2003)
 VLT          ; lower troposphere thermal wind (Hart 2003)
 VUT          ; upper troposphere thermal wind (Hart 2003)
 ```
+
+### 6.) Concatenate, postprocess, and analyze statistics
 
 **NOTE:** All NCL files beginning with `et_` call the default namelist but have an optional command line arg of `nlfile` as with ExTraTrack that allows for the user to specify a different namelist file.
 
