@@ -33,6 +33,9 @@ hourmean = 24.
 ; frequency of output data (hrs)
 datafreq = namelist_extract( nlfile, "hrintvl", "float")
 
+; average file
+catfile = "traj_et_"+typestr+"_avg"
+
 ;**********************************************************************************
 
 ;========================================================
@@ -83,7 +86,6 @@ datafreq = namelist_extract( nlfile, "hrintvl", "float")
 ;========================================================
 
 ; read in data
-
   snum = etdata(:,0)
   lon  = etdata(:,1)
   lat  = etdata(:,2)
@@ -153,18 +155,22 @@ do i = 0,num_tot-1
 
   outfile = "tmp_avg_"+typestr+"_"
 
-  system("mkdir -p ./text_files/")
+  textfiledir="./text_files/"
+  ; make text and timing file folders if they do not exist.
+  if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
+    system("mkdir "+timingfiledir+"/")
+  end if
 
 ; remove text file if it already exists
-  system("rm -f ./text_files/"+outfile+sprinti("%0.4i",itc)+".txt")
+  system("rm -f "+textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt")
   
 ; write header line for storm
-  write_table("./text_files/"+outfile+sprinti("%0.4i",itc)+".txt","w", \
+  write_table(textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt","w", \
               [/"start",dur,year_sub(0),mon_sub(0),day_sub(0),hour_sub(0),itc/], \
               "%s   %03i  %4.0f      %02.0f    %02.0f    %02.0f    %04i")
 
 ; write storm data to ascii file (append to header)   
-  write_table("./text_files/"+outfile+sprinti("%0.4i",itc)+".txt","a", \
+  write_table(textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt","a", \
     [/lon_sub,lat_sub,pres_sub, \
     V_sub,dist_sub,ang_sub, \
     B_avg,Vlt_avg,Vut_avg, \
@@ -182,9 +188,7 @@ do i = 0,num_tot-1
   
 end do  ; end storm loop
 
-  catfile = "traj_et_"+typestr+"_avg"
-
-  system("cat ./text_files/"+outfile+"* > ./text_files/"+catfile)
-  system("rm -f ./text_files/"+outfile+"*")
+  system("cat "+text_files+"/"+outfile+"* > "+text_files+"/"+catfile)
+  system("rm -f "+text_files+"/"+outfile+"*")
 	
 end
