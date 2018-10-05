@@ -17,6 +17,8 @@
 
 starttime=$(date -u +"%s")
 
+DOPOSTPROCESS=true
+
 module load parallel
 module load ncl 
 
@@ -25,7 +27,7 @@ TIMESTAMP=`date +%s%N`
 COMMANDFILE=commands.${TIMESTAMP}.txt
 
 STYR=1984
-ENYR=2014
+ENYR=1989
 NAMELISTFILE="./user-nl/nl.CORI"
 
 for DATA_YEAR in $(eval echo {$STYR..$ENYR})
@@ -39,6 +41,12 @@ if [[ $HOST = *"cheyenne"* ]]; then
 fi
 if [[ $HOST = *"cori"* ]]; then
   parallel --jobs ${NUMCORES} -u < ${COMMANDFILE}
+fi
+
+if [ "$DOPOSTPROCESS" = true ] ; then
+  ncl et_concat_trajs.ncl 'nlfile="'${NAMELISTFILE}'"'
+  ncl et_avg_text.ncl 'nlfile="'${NAMELISTFILE}'"'
+  ncl et_yearly_clim.ncl 'nlfile="'${NAMELISTFILE}'"'
 fi
 
 endtime=$(date -u +"%s")
