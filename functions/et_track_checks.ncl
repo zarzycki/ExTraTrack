@@ -8,7 +8,7 @@ function et_track_checks(
   dist[1]    : numeric,    ; distance traveled (km)
   d_ang[1]   : numeric     ; change in bearing of storm
   )
-local vel
+local vel, storm_check
 ; checks if the storm can should still be considered
 ;
 ; D.R. Thatcher 15/07/2014
@@ -67,9 +67,10 @@ begin
   end if
   end if
   end if
-  
+
   delete(vel)
   
   return(storm_check)
   
+
 end
