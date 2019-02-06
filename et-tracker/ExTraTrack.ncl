@@ -87,8 +87,8 @@ r2d = (1./d2r)
 
 ; debugging
 plot_test=False
-plot_phase = False
-plot_track = False
+plot_phase = True
+plot_track =False 
 do_debug=False
 
 ;========================================================
@@ -286,15 +286,23 @@ do jtc = 0,ntc-1
   ; convert start time to match data calendar format
 
   OPT=0
-  OPT@calendar=ftimecal
+  OPT@calendar := ftimecal
   s_time = cd_inv_calendar(s_year(itc),s_month(itc),s_day(itc),s_hour(itc),0,0, \
                            ftimeunits,OPT)
   s_date = sprinti("%0.4i",s_year)+sprinti("%0.2i",s_month)+sprinti("%0.2i",s_day)
 
-  ; allow 21 days past the end of TC phase
-  e_time = s_time + (dur(itc)/4.) + 21
-  e_time@units = s_time@units
-  e_time@calendar = s_time@calendar
+  ; allow 21 days past the end of TC phase  
+  if ( str_match_bool_ic(s_time@units,"days") ) then
+    e_time = s_time + (dur(itc)/4.) + 21
+  else if ( str_match_bool_ic(s_time@units,"hours") ) then
+    e_time = s_time + (dur(itc)*6.) + (21.*24.)
+  else
+    print("confused about time units, check time units on input netcdf data, exiting...")
+    exit
+  end if
+  end if
+  e_time@units := s_time@units
+  e_time@calendar := s_time@calendar
 
   ; convert time to date format for selecting files  
   end_date = cd_calendar(e_time,0)
@@ -336,6 +344,11 @@ do jtc = 0,ntc-1
    
 	; read in data    
 	Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+	if (max(Z3) .gt. 20000.) then
+	  print("WARNING: Z seems high, do you have geopotential instead of geo height?")
+	  print("WARNING: dividing by g, but you should check this!")
+	  Z3 = Z3/9.81
+	end if
 	nlev = dimsizes(Z3&lev)
 
   ; pressure levels
@@ -371,7 +384,7 @@ do jtc = 0,ntc-1
 
   copy_VarMeta(UBOT,UBOTMAG)
 	delete([/UBOT,VBOT/])
-          
+
   ;========================================================
   ; Load data and preallocate some arrays
   ;========================================================
@@ -411,11 +424,13 @@ do jtc = 0,ntc-1
   ; convert Pa to hPa
   PSL = PSL_in/100.0
   copy_VarMeta(PSL_in,PSL)
-  PSL@units = "hPa"
+  PSL@units := "hPa"
   delete(PSL_in)
     
-  ; assign fill value for missing 
-  PSL@_FillValue = 9.969209968386869e+36
+  ; assign fill value for missing if doesn't exist
+  if(.not.isatt(PSL,"_FillValue")) then
+    PSL@_FillValue := 9.969209968386869e+36
+  end if
   
   ; get Z thickness between 600 and 900 for B calculation
   Z_thick = Z(:,indmid,:,:) - Z(:,indbot,:,:)
@@ -480,8 +495,8 @@ do jtc = 0,ntc-1
     ; Set options to pass into CPS calcs
     ;========================================================
     opt=0
-    opt@date=cd_calendar(time(i),3)
-    opt@id=itc
+    opt@date:=cd_calendar(time(i),3)
+    opt@id:=itc
 
     ;========================================================
     ; Find thickness of the right and left hand sides of storm
@@ -531,7 +546,6 @@ do jtc = 0,ntc-1
 
   ; loop over all times after TC tracker ends
   do i = nrows,ntime-1
-
     if (minPlat(i-1) .ge. (latmax-10.) .or. minPlon(i-1) .ge. (lonmax-10.) .or. \
            minPlat(i-1) .le. (latmin+10.) .or. minPlon(i-1) .le. (lonmin+10.)) then
       print("Done tracking storm since it exited our available domain...")
@@ -588,8 +602,11 @@ do jtc = 0,ntc-1
         ang_tmp = new(nmins,float)        ; storm bearing (degrees)
         d_ang_tmp = new(nmins,float)      ; change in bearing (degrees)
   
+
+  
         ; loop over all local minimums
         do jmin = 0,nmins-1
+
            minP_tmp(jmin) = PSL(i,{locmin_lat(jmin)},{locmin_lon(jmin)})
            dist_tmp(jmin) = gc_latlon(minPlat(i-1),minPlon(i-1), \
                      locmin_lat(jmin),locmin_lon(jmin),2,4) ; km
@@ -597,7 +614,6 @@ do jtc = 0,ntc-1
                        locmin_lat(jmin),locmin_lon(jmin))
            d_ang_tmp(jmin) = r2d*atan2(sin((ang(i-1)-ang_tmp(jmin))*d2r), \
                          cos((ang(i-1)-ang_tmp(jmin))*d2r))
-
            locmin_test(jmin) = et_track_checks(latmax,lonmax, \
                                minP_tmp(jmin),locmin_lat(jmin),locmin_lon(jmin), \
                      dist_tmp(jmin),d_ang_tmp(jmin))
@@ -614,7 +630,6 @@ do jtc = 0,ntc-1
 
         if (.not. all(ismissing(locmin_true))) then
           minPind = ind(minP_tmp .eq. min(minP_tmp(locmin_true)))  ; choose lowest pressure
-
           ; loop to check if two valid points within the search area
           ; have the exact same minimum pressure (yes, this actually happens)
           ; choose minimum pressure with travel distance/speed most similar to previous time step
@@ -638,7 +653,6 @@ do jtc = 0,ntc-1
           minPlat(i) = (/locmin_lat(minPind)/)   ; latitude of minimum pressure
           minPlon(i) = (/locmin_lon(minPind)/)   ; longitude of minimum pressure
           minP(i) = minP_tmp(minPind)            ; minimum pressure value
-    
           dist(i) = dist_tmp(minPind)     ; distance traveled by storm (km)
           V(i) = V_tmp                    ; max wind speed
           ang(i) = ang_tmp(minPind)       ; storm bearing
@@ -663,8 +677,8 @@ do jtc = 0,ntc-1
       ; Set options to pass into CPS calcs
       ;========================================================
       opt=0
-      opt@date=cd_calendar(time(i),3)
-      opt@id=itc
+      opt@date:=cd_calendar(time(i),3)
+      opt@id:=itc
 
       ;========================================================
       ; Find thickness of the right and left hand sides of storm
