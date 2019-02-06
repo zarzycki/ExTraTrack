@@ -318,13 +318,18 @@ do jtc = 0,ntc-1
   ; Load input files
   ;========================================================
 
-  if (s_time .lt. min(timeArr) .or. e_time .gt. max(timeArr)) then
+  if (s_time .lt. min(timeArr)) then
     print("Traj sttime: "+s_time+"  min gridded time: "+min(timeArr))
-    print("Traj entime: "+e_time+"  max gridded time: "+max(timeArr))
-    print("either start or end of traj lies outside available gridded data times, continuing...")
+    print("start of traj lies outside available gridded data times, skipping...")
     delete([/tsub,nrows/])
     continue
   else
+    if (e_time .gt. max(timeArr)) then
+      print("Traj entime: "+e_time+"  max gridded time: "+max(timeArr))
+      print("Setting end time to last time in array")
+      print("WARNING: may not be full traj")
+      e_time = max(timeArr)
+    end if
     this_tmp1=getFileAndTimeFromLookup(timeArr,s_time)
     this_tmp2=getFileAndTimeFromLookup(timeArr,e_time)
     print("... files: "+this_tmp1[0]+" to "+this_tmp2[0])
