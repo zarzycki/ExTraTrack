@@ -9,7 +9,7 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   if [ "${line:0:1}" == "s" ] ; then
     echo $line
     STORMSTRING=`printf "%03d\n" $STORMID`
-    echo ${line}${STORMSTRING} >> ${NEWFILE}
+    echo ${line}" "${STORMSTRING} >> ${NEWFILE}
     STORMID=$((STORMID+1))
   else
     eval x=($line)
