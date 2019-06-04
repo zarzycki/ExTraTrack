@@ -60,8 +60,8 @@ print(" ")
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 1984
-  year_max = 2016
+  year_min = 0
+  year_max = 4
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
@@ -238,6 +238,22 @@ do jtc = 0,ntc-1
   ; Test for correct basin
   ;========================================================
 
+  orilat=tsub(0,2)
+  orilon=tsub(0,1)
+
+  if (orilat .gt. 0) then
+    print("NH storm, restricting lats")
+    latmin=0.0
+  else
+    print("SH storm, restricting lats")
+    latmax=0.0
+  end if
+
+
+  ;========================================================
+  ; Test for correct basin
+  ;========================================================
+
   ; select appropriate basin based on trajectory lat/lon
   ; analyze only north atlantic basin storms, skip all others
 
@@ -246,8 +262,6 @@ do jtc = 0,ntc-1
 
     tcMask = mask_tc(0,-999,-999,maskspacing,360)
 
-    orilat=tsub(0,2)
-    orilon=tsub(0,1)
     if (orilon .gt. 360.0-maskspacing) then
       orilon=360.0-maskspacing
       print("    original lon: "+tsub(0,1)+"   modified lon: "+orilon)
@@ -291,11 +305,12 @@ do jtc = 0,ntc-1
                            ftimeunits,OPT)
   s_date = sprinti("%0.4i",s_year)+sprinti("%0.2i",s_month)+sprinti("%0.2i",s_day)
 
-  ; allow 21 days past the end of TC phase  
+  ; allow npastdays days past the end of TC phase
+  npastdays=14.
   if ( str_match_bool_ic(s_time@units,"days") ) then
-    e_time = s_time + (dur(itc)/4.) + 21
+    e_time = s_time + (dur(itc)/4.) + npastdays
   else if ( str_match_bool_ic(s_time@units,"hours") ) then
-    e_time = s_time + (dur(itc)*6.) + (21.*24.)
+    e_time = s_time + (dur(itc)*6.) + (npastdays*24.)
   else
     print("confused about time units, check time units on input netcdf data, exiting...")
     exit
@@ -339,16 +354,22 @@ do jtc = 0,ntc-1
   end if
 
   ;========================================================
-  ; Load Z
+  ; Load files
   ;========================================================
 
+  print("Loading files...")
 	; read in data for Z levels
 	input1 = addfiles(files1,"r")
 	ListSetType(input1,"cat")
 	delete(files1)
-   
-	; read in data    
-	Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+  print("... done loading files.")
+
+  ;========================================================
+  ; Load Z
+  ;========================================================
+	
+	print("Loading geopotential heights")
+  Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
 	if (max(Z3) .gt. 20000.) then
 	  print("WARNING: Z seems high, do you have geopotential instead of geo height?")
 	  print("WARNING: dividing by g, but you should check this!")
@@ -371,11 +392,12 @@ do jtc = 0,ntc-1
   ; flip longitude for geopotential height 
 	Z = Z3(:,:,:,{lonmin-eps:lonmax})
   delete([/Z3/])
-
+  print("... done loading geopotential height")
   ;========================================================
   ; Load data and calculate UMAG
   ;========================================================
 
+  print("Loading U+V...")
 	; load wind speeds at lowermost model level
 	UBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
 	VBOT_in = input1[:]->UBOT({s_time:e_time},{latmin:latmax},:)
@@ -389,11 +411,13 @@ do jtc = 0,ntc-1
 
   copy_VarMeta(UBOT,UBOTMAG)
 	delete([/UBOT,VBOT/])
+  print("... done loading U+V.")
 
   ;========================================================
   ; Load data and preallocate some arrays
   ;========================================================
 
+  print("Loading rest of data...")
   ; time and lat/lon arrays
   time = input1[:]->time({s_time:e_time})
   ; because lat/lon may be double and we want float, but NCL doesn't persist meta when
@@ -436,7 +460,8 @@ do jtc = 0,ntc-1
   if(.not.isatt(PSL,"_FillValue")) then
     PSL@_FillValue := 9.969209968386869e+36
   end if
-  
+  print("... done loading rest of data")
+
   ; get Z thickness between 600 and 900 for B calculation
   Z_thick = Z(:,indmid,:,:) - Z(:,indbot,:,:)
   Z_thick!0 = "time"
