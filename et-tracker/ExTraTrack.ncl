@@ -346,15 +346,31 @@ do jtc = 0,ntc-1
 	input1 = addfiles(files1,"r")
 	ListSetType(input1,"cat")
 	delete(files1)
+
+  ; Check to make sure levels are oriented from top to bottom (i.e., low P to high P)
+  lev_in = input1[0]->lev
+  lev = tofloat(lev_in) 
+ 	nlev = dimsizes(lev)
+  if (lev(0) .gt. lev(nlev-1)) then
+    print("WARNING: levs ordered from bottom (1000mb) to top (300mb)")
+    print("WARNING: attempting to reverse, but you should check this!")
+    flipLev=True
+  end if
+	delete([/lev,lev_in/])  
    
-	; read in data    
-	Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+	; read in Z    
+  if (flipLev) then
+	  Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
+  else
+	  Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+  end if
+
+  ; Check to geopotential versus geopotential HEIGHT. Attempt to fix by dividing by g
 	if (max(Z3) .gt. 20000.) then
 	  print("WARNING: Z seems high, do you have geopotential instead of geo height?")
 	  print("WARNING: dividing by g, but you should check this!")
 	  Z3 = Z3/9.81
 	end if
-	nlev = dimsizes(Z3&lev)
 
   ; pressure levels
   pnew = Z3&lev
