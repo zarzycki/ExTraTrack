@@ -22,7 +22,11 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     wind=$(bc -l <<< "scale=3;${var}/1")
 
 #        314     145     157.000000      -17.500000      9.964526e+04    1.532690e+01    0.000000e+00    1999    1       20      12
-    echo ${x[2]}' '${x[3]}' '${wind}' '${mslp}' '${x[7]}' '${x[8]}' '${x[9]}' '${x[10]}  >> ${NEWFILE}
+
+    # These lines have to be modified based on how your columns work out (i.e., unstruct, do you have PHIS, etc.)
+
+    #echo ${x[2]}' '${x[3]}' '${wind}' '${mslp}' '${x[7]}' '${x[8]}' '${x[9]}' '${x[10]}  >> ${NEWFILE}
+    echo ${x[2]}' '${x[3]}' '${wind}' '${mslp}' '${x[6]}' '${x[7]}' '${x[8]}' '${x[9]}  >> ${NEWFILE}
 
   fi
 done < "$1"
