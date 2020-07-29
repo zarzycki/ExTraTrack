@@ -1,5 +1,5 @@
 #!/bin/bash
 
-DIR=/global/homes/c/czarzyck/scratch/et-hyperion/
+DIR=/storage/home/cmz5202/scratch/z.day1.0/run/ET/
 
-find ${DIR} -name "*h7.198*.nc" | sort -n > filelist.txt
+find ${DIR} -name "*.nc" | sort -n > filelist.txt
