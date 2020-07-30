@@ -56,12 +56,15 @@ extractBox = namelist_extract( nldefaults, "extractBox", "float")
 
 print(" ")
 
+; CMZ setting to continue tracking PSL min past traj end
+KEEPGOING=False
+
 ; select year(s) and months(s) of traj files to look at.
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 0
-  year_max = 4
+  year_min = 2001
+  year_max = 2001
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
@@ -369,6 +372,7 @@ do jtc = 0,ntc-1
   ;========================================================
 
   ; Check to make sure levels are oriented from top to bottom (i.e., low P to high P)
+  flipLev=False
   lev_in = input1[0]->lev
   lev = tofloat(lev_in) 
  	nlev = dimsizes(lev)
@@ -576,19 +580,19 @@ do jtc = 0,ntc-1
 
   end do   ; end loop of already TC tracked stuff
 
-  delete(i)
-
   ;========================================================
   ; call function to create et plot
   ;========================================================
 
   if (plot_track) then  
-    do i = 0, nrows-1
-      et_track_plot(type,itc,i,lat,lon,date(i),minP(i),minPlat(i),minPlon(i), \
-                    PSL(i,:,:),PSL(i,:,:))
+    do ii = 0, nrows-1
+      et_track_plot(type,itc,ii,lat,lon,date(ii),minP(ii),minPlat(ii),minPlon(ii), \
+                    PSL(ii,:,:),PSL(ii,:,:))
     end do
-    delete(i)
+    delete(ii)
   end if
+
+  if (KEEPGOING) then
 
   ;========================================================
   ; Find great circle distances and pressure values within radius
@@ -764,6 +768,8 @@ do jtc = 0,ntc-1
 
     end if ; check to see if storm is still in domain
   end do   ;loop over all times after TC tracker ends
+
+  end if  ; end KEEPGOING
 
   delete([/PSL,ang_all,Z,Z_thick,UBOTMAG,wgt,lat,lon,nlat,nlon,ntime,nrows/])
 
