@@ -1,8 +1,4 @@
 ;========================================================
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 load "../functions/mask_tc.ncl"
 load "../functions/bearing.ncl"
 load "../functions/et_track_plot.ncl"
@@ -39,10 +35,10 @@ type = namelist_extract( nlfile, "type", "string")
 tfile = namelist_extract( nlfile, "tfile", "string")
 filelist = namelist_extract( nlfile, "filelist", "string")
 basin = namelist_extract( nlfile, "basin", "integer")
-latmin = namelist_extract( nlfile, "latmin", "float")
-latmax = namelist_extract( nlfile, "latmax", "float")
-lonmin = namelist_extract( nlfile, "lonmin", "float")
-lonmax = namelist_extract( nlfile, "lonmax", "float")
+nllatmin = namelist_extract( nlfile, "latmin", "float")
+nllatmax = namelist_extract( nlfile, "latmax", "float")
+nllonmin = namelist_extract( nlfile, "lonmin", "float")
+nllonmax = namelist_extract( nlfile, "lonmax", "float")
 hrintvl = namelist_extract( nlfile, "hrintvl", "float")
 
 ; Load default settings (change at your own risk...)
@@ -63,8 +59,8 @@ KEEPGOING=False
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 2001
-  year_max = 2001
+  year_min = 1998
+  year_max = 1998
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
@@ -238,8 +234,13 @@ do jtc = 0,ntc-1
   delete([/tsub_ind,dims/])
 
   ;========================================================
-  ; Test for correct basin
+  ; Reset lat bounds to namelist and filter by hemisphere
   ;========================================================
+
+  latmin=nllatmin
+  latmax=nllatmax
+  lonmin=nllonmin
+  lonmax=nllonmax
 
   orilat=tsub(0,2)
   orilon=tsub(0,1)
