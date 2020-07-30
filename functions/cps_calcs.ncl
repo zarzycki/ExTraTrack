@@ -17,6 +17,15 @@ begin
   deg2rad = pi/180.
 
     ; assign left and right Zs to entire Z array
+
+    ; DEBUG STATEMENTS
+    ;print(minPlat+" "+minPlon)
+    ;print((minPlat-qq_ddeg)+" "+(minPlat+qq_ddeg))
+    ;print((minPlon-qq_ddeg)+" "+(minPlon+qq_ddeg))
+    ;printVarSummary(Z_thick)
+    ;print(Z_thick&lat)
+    ;print(Z_thick&lon)
+
     Zl = Z_thick({(minPlat-qq_ddeg):(minPlat+qq_ddeg)},{(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
     Zr = Zl
     
@@ -203,8 +212,9 @@ Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6
 ;print(dZ(indmid:indbot))
 
 returnvar=new(2,"float")
-returnvar(0)=Vlt
-returnvar(1)=Vut
+returnvar(0)=tofloat(Vlt)
+returnvar(1)=tofloat(Vut)
+print(Vlt+" "+Vut)
 return(returnvar)
 
 end
