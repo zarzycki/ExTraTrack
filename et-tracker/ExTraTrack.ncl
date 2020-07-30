@@ -45,7 +45,7 @@ hrintvl = namelist_extract( nlfile, "hrintvl", "float")
 nldefaults="./defaults/defaults.nl"
 critRad = namelist_extract( nldefaults, "critRad", "float")
 eps = namelist_extract( nldefaults, "eps", "float")
-minlatetc = namelist_extract( nldefaults, "minlatetc", "float")
+nlminlatetc = namelist_extract( nldefaults, "minlatetc", "float")
 maskspacing = namelist_extract( nldefaults, "maskspacing", "float")
 cpslevs = namelist_extract( nldefaults, "cpslevs", "float")
 extractBox = namelist_extract( nldefaults, "extractBox", "float")
@@ -54,6 +54,7 @@ print(" ")
 
 ; CMZ setting to continue tracking PSL min past traj end
 KEEPGOING=False
+IGNORE_DISSIPATORS=False
 
 ; select year(s) and months(s) of traj files to look at.
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
@@ -257,6 +258,12 @@ do jtc = 0,ntc-1
   ;========================================================
   ; Test for correct basin
   ;========================================================
+
+  if (.not. IGNORE_DISSIPATORS) then
+    minlatetc=0.0
+  else
+    minlatetc=nlminlatetc
+  end if
 
   ; select appropriate basin based on trajectory lat/lon
   ; analyze only north atlantic basin storms, skip all others
@@ -544,8 +551,12 @@ do jtc = 0,ntc-1
     ;========================================================
     dist(i) = gc_latlon(minPlat(i),minPlon(i),minPlat(i-1),minPlon(i-1),2,4)  ; km
     ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
-    d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
-
+    if (i .eq. 1) then
+      ; if first datapoint, we can't have a change in angle, so set to zero
+      d_ang(i) = 0.
+    else
+      d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
+    end if
     ;========================================================
     ; Set options to pass into CPS calcs
     ;========================================================
@@ -573,11 +584,9 @@ do jtc = 0,ntc-1
     if (i .eq. 1) then
       print("    Press.   Lat      Lon     dist    V      ang" + \
             "     d_ang      B     Vlt     Vut     TYPE")
-    else
+    end if
       print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i),V(i),ang(i),d_ang(i), \
         B(i),Vlt(i),Vut(i),"TC")
-
-    end if
 
   end do   ; end loop of already TC tracked stuff
 
