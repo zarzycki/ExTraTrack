@@ -214,7 +214,6 @@ Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6
 returnvar=new(2,"float")
 returnvar(0)=tofloat(Vlt)
 returnvar(1)=tofloat(Vut)
-print(Vlt+" "+Vut)
 return(returnvar)
 
 end
