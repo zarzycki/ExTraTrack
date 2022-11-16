@@ -1,4 +1,4 @@
-# ExTraTrack v0.19
+# ExTraTrack
 
 ## aka the Extratropical Transition (tropical cyclone) Tracker
 
@@ -110,7 +110,7 @@ The time dimension must be the record dimension and have a CF-compliant units at
 
 Files may only be split along the time dimension. In other words, PSL, UBOT, VBOT, and Z at time t must be on the same file, but files can be split to have a single time per file, 4 times per file, 1460 times per file, etc. Any files with more than one month of data will occur additional memory overhead, so daily/weekly/monthly are preferred.
 
-Example ERA-I files that are compliant are included in `./sample_data/`
+Example ERA-I files that are compliant are included in the example tar.gz file listed above.
 
 Users may modify the data ingestion within `reanalysis_et_cyclone_traj.ncl` but only the above format will be supported.
 
