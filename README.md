@@ -18,7 +18,7 @@ _Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal A
 
 To use this code, you *must* have gridded reanalysis or climate model data that contains variables described below.
 
-**A sample of gridded data + TC trajectories to start with can be downloaded from:** http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.gz
+**A sample of gridded data + TC trajectories to start with can be downloaded from:** [http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.tar.gz](http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.tar.gz)
 
 ## General procedure
 
@@ -96,7 +96,7 @@ REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.
 1. PSL (sea level pressure in Pa)
 2. UBOT (lowest model level U wind, in m/s)
 3. VBOT (lowest model level V wind, in m/s)
-4. Z (geopotential height, in m) @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 
+4. Z (geopotential height, in m) @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850,
     875, 900, 925, 950, 975, 1000 mb.
 
 PSL, UBOT, and VBOT are 2-D variables at each time. (ntime x nlat x nlon)
@@ -108,7 +108,7 @@ Z is 3-D, with the vertical dimension named "lev." (ntime x nlev x nlat x nlon)
 
 The time dimension must be the record dimension and have a CF-compliant units attribute (i.e., "days since 2000-01-01"). There should also be a calendar attribute if using a calendar other than "noleap"
 
-Files may only be split along the time dimension. In other words, PSL, UBOT, VBOT, and Z at time t must be on the same file, but files can be split to have a single time per file, 4 times per file, 1460 times per file, etc. Any files with more than one month of data will occur additional memory overhead, so daily/weekly/monthly are preferred. 
+Files may only be split along the time dimension. In other words, PSL, UBOT, VBOT, and Z at time t must be on the same file, but files can be split to have a single time per file, 4 times per file, 1460 times per file, etc. Any files with more than one month of data will occur additional memory overhead, so daily/weekly/monthly are preferred.
 
 Example ERA-I files that are compliant are included in `./sample_data/`
 
@@ -198,7 +198,7 @@ VUT          ; upper troposphere thermal wind (Hart 2003)
 In `./text_files/` the individual `tmp_XXX_NNN.txt` files need to be concatenated into a singlular traj file. This can be done quickly by invoking
 ```$> ncl et_concat_trajs.ncl```
 
-You can then run 
+You can then run
 ```$> ncl et_avg_text.ncl```
 ... to produce a "smoothed" ET trajectory file from `./text_files/${ETCTRAJ_ORIG}`.
 Settings are contained in the user options at the top of the script.
@@ -299,6 +299,6 @@ Note: TOTDUR/ETDUR in "timesteps" (number of datapoints, so 5 for 6-hourly pts =
 STORMID ETDUR PATH SLPST   SLPEN     ETSTARTYYYMMMDDHH   ETENDYYYMMMDDHH
 ```
 
-* PATH is path type defined in Zarzycki et al., 2017 
+* PATH is path type defined in Zarzycki et al., 2017
 * SLPST - SLP at start of transition
 * SLPEN - SLP at end of transition
