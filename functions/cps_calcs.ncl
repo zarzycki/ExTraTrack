@@ -205,8 +205,13 @@ do jlev = 0,dimsizes(logp)-1
 end do
 
 ; Compute thermal winds using Eqs. from Hart 2003 using linear regression
-Vlt = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
-Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
+if (opt@v_interp .eq. "simple") then
+  Vlt =  (dZ(indmid) - dZ(indbot)) / (logp(indmid) - logp(indbot))
+  Vut =  (dZ(indtop) - dZ(indmid)) / (logp(indtop) - logp(indmid))
+else
+  Vlt = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
+  Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
+end if
 
 ;print(logp(indmid:indbot))
 ;print(dZ(indmid:indbot))

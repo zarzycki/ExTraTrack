@@ -49,6 +49,7 @@ nlminlatetc = namelist_extract( nldefaults, "minlatetc", "float")
 maskspacing = namelist_extract( nldefaults, "maskspacing", "float")
 cpslevs = namelist_extract( nldefaults, "cpslevs", "float")
 extractBox = namelist_extract( nldefaults, "extractBox", "float")
+vt_calc_method = namelist_extract( nldefaults, "vt_calc_method", "string")
 
 print(" ")
 
@@ -60,8 +61,8 @@ IGNORE_DISSIPATORS=False
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 1998
-  year_max = 1998
+  year_min = 1980
+  year_max = 2022
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
@@ -90,6 +91,21 @@ plot_test=False
 plot_phase = True
 plot_track =False 
 do_debug=False
+
+;========================================================
+; Do some sanity checking and internal setting
+;========================================================
+
+if (vt_calc_method .eq. "regline") then
+  interp_Z_to_CPS=False
+else if (vt_calc_method .eq. "simple") then
+  interp_Z_to_CPS=True
+else
+  print("invalid vt_calc_method: "+vt_calc_method)
+  print("currently regline and simple are supported")
+  exit
+end if
+end if
 
 ;========================================================
 ; Build lookup table from files listed in filelist
@@ -376,12 +392,28 @@ do jtc = 0,ntc-1
   print("... done loading files.")
 
   ;========================================================
+  ; Figure out level name
+  ;========================================================
+  
+  if isfilevarcoord( input1[0], "Z", "lev") then
+    levname="lev"
+  else if isfilevarcoord( input1[0], "Z", "level") then
+    levname="level"
+  else
+    print("Unsupported level dimension on Z file")
+    print("please name it lev or level")
+    exit
+  end if
+  end if
+  print("levname: "+levname)
+  
+  ;========================================================
   ; Check Z levs
   ;========================================================
 
   ; Check to make sure levels are oriented from top to bottom (i.e., low P to high P)
   flipLev=False
-  lev_in = input1[0]->lev
+  lev_in = input1[0]->$levname$
   lev = tofloat(lev_in) 
  	nlev = dimsizes(lev)
   if (lev(0) .gt. lev(nlev-1)) then
@@ -397,20 +429,33 @@ do jtc = 0,ntc-1
 	
 	print("Loading geopotential heights")
   if (flipLev) then
-	  Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
+    ;Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
+	  Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,::-1)
   else
-	  Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+    ;Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+	  Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,:)
   end if
-
+  
+  ; make sure we are ordered correctly
+  Z3 := Z3(time|:,$levname$|:,lat|:,lon|:)
+  
 	if (max(Z3) .gt. 20000.) then
 	  print("WARNING: Z seems high, do you have geopotential instead of geo height?")
 	  print("WARNING: dividing by g, but you should check this!")
 	  Z3 = Z3/9.81
 	end if
-	nlev = dimsizes(Z3&lev)
+	nlev = dimsizes(Z3&$levname$)
+
+	if (interp_Z_to_CPS) then
+	  print("interpolating Z to CPS surfaces")
+	  ; convert cpslevs to same type as Z3 levs
+	  cpslevs := totype(cpslevs,typeof(Z3&$levname$))
+	  Z3 := int2p_n_Wrap(Z3&$levname$,Z3,cpslevs,1,1)
+	  Z3!1=levname
+	end if
 
   ; pressure levels
-  pnew = Z3&lev
+  pnew = Z3&$levname$
   logp = log(pnew*100.)   ; convert p from hPa to Pa and take log
 
   ; assign indices to be used later
@@ -563,6 +608,7 @@ do jtc = 0,ntc-1
     opt=0
     opt@date:=cd_calendar(time(i),3)
     opt@id:=itc
+    opt@v_interp=vt_calc_method  ; regline or simple
 
     ;========================================================
     ; Find thickness of the right and left hand sides of storm
