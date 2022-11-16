@@ -429,11 +429,11 @@ do jtc = 0,ntc-1
 	
 	print("Loading geopotential heights")
   if (flipLev) then
-    ;Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
-	  Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,::-1)
+    Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
+	  ;Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,::-1)
   else
-    ;Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
-	  Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,:)
+    Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+	  ;Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,:)
   end if
   
   ; make sure we are ordered correctly
