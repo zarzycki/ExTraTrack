@@ -11,14 +11,14 @@ _Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical 
 
 **NOTE:** This is pre-release code that mainly consists of NCL / Bash scripting. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but not a high priority. Please e-mail me if you are interested in adapting this code for use with your products. If you are a user and find a bug or think you can contribute an improvement, open a ticket, pull request, etc.
 
-**WARNING:** This code has not been extensively verified beyond the particular projects noted below. If you find any bugs or inconsistencies, please contact zarzycki@ucar.edu.
+**WARNING:** This code has not been extensively verified beyond the particular projects noted below. If you find any bugs or inconsistencies, please contact czarzycki@psu.edu.
 
 It applies cyclone phase space as defined by:
 _Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal Asymmetry. Mon. Wea. Rev., 131, 585–616_
 
 To use this code, you *must* have gridded reanalysis or climate model data that contains variables described below.
 
-**A sample of gridded data + TC trajectories to start with can be downloaded from:** http://www.cgd.ucar.edu/staff/zarzycki/files/ERA-sample-ETC-tracker-data.gz
+**A sample of gridded data + TC trajectories to start with can be downloaded from:** http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.gz
 
 ## General procedure
 
