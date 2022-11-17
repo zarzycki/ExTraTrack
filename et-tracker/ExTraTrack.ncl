@@ -7,6 +7,7 @@ load "../functions/et_phase_plot.ncl"
 load "../functions/cps_calcs.ncl"
 load "../functions/namelist_extract.ncl"
 load "../functions/fcns-extract-storm.ncl"
+load "../functions/getTrajectoriesGeneric.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
@@ -40,6 +41,7 @@ nllatmax = namelist_extract( nlfile, "latmax", "float")
 nllonmin = namelist_extract( nlfile, "lonmin", "float")
 nllonmax = namelist_extract( nlfile, "lonmax", "float")
 hrintvl = namelist_extract( nlfile, "hrintvl", "float")
+trajinds = namelist_extract( nlfile, "trajinds", "integer")
 
 ; Load default settings (change at your own risk...)
 nldefaults="./defaults/defaults.nl"
@@ -61,8 +63,8 @@ IGNORE_DISSIPATORS=False
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 1980
-  year_max = 2022
+  year_min = 2001
+  year_max = 2001
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
@@ -149,69 +151,43 @@ print("Loading TC trajectories...")
 nstorms_tot = stringtoint(systemfunc("grep 'start' "+tfile+" | wc -l"))
 print("   Total number of storms = "+nstorms_tot)
 
-tdata_tmp = asciiread(tfile,-1,"string")  ; read in trajectory data as strings
-dims = dimsizes(tdata_tmp)    ; get dimensions
-nrows = dims(0)               ; get number of rows
-ncol = 8                      ; assign number of columns
-delete([/tfile,dims/])
+ncols = -1                    ; assign number of columns
+maxLines = -1
+headerDelimStr = "start"
+tdata = getTrajectoriesGeneric(tfile,ncols,maxLines,headerDelimStr,False,False)
+tdata_dims = dimsizes(tdata)
+tdata_nstorms = tdata_dims(0)
+tdata_nvars = tdata_dims(1)
+tdata_ntimes = tdata_dims(2)
 
-; create new array that will hold all data except rows containing start information
-; add column to contain storm number
-tdata = new((/nrows-nstorms_tot,ncol+1/),float)
+; All arrays beginning t_??? are nstorms x ntimes array containing relevant
+; TC trajectory information from TempestExtremes
+; Use user-defined trajinds to set lon, lat, wind, pres
+t_lon = tofloat(tdata(:,trajinds(0),:))
+t_lat = tofloat(tdata(:,trajinds(1),:))
+t_wind = tofloat(tdata(:,trajinds(2),:))
+t_pres = tofloat(tdata(:,trajinds(3),:))
+; Assume last 4 vars are YYYY MM DD HH
+t_yyyy=  toint(tdata(:,tdata_nvars-4,:))
+t_mm= toint(tdata(:,tdata_nvars-3,:))
+t_dd= toint(tdata(:,tdata_nvars-2,:))
+t_hh= toint(tdata(:,tdata_nvars-1,:))
 
-; create new array to hold all header information for each storm
-dur     = new(nstorms_tot,integer)
-s_year  = new(nstorms_tot,integer)
-s_month = new(nstorms_tot,integer)
-s_day   = new(nstorms_tot,integer)
-s_hour  = new(nstorms_tot,integer)
-s_id  = new(nstorms_tot,integer)
+; get start/end arrays that are length nstorms
+s_dur   = dim_sum_n(where(.not.ismissing(t_lon),1,0),1)
+s_year  = t_yyyy(:,0)
+s_month = t_mm(:,0)
+s_day   = t_dd(:,0)
+s_hour  = t_hh(:,0)
+s_id    = ispan(0,nstorms_tot-1,1)
 e_year  = new(nstorms_tot,integer)
 e_month = new(nstorms_tot,integer)
-
-; loop over lines of trajectory data, convert string to float
-nstorm = 0   ; assign storm number
-n2 = 0       ; counter data without header lines
-do n1 = 0,nrows-1  ; loop over all data with header lines
-  first = str_get_cols(tdata_tmp(n1),0,0)   ; obtain first character of row
-  if (first .ne. "s") then              ; if not 's', this is not a header
-    tdata_tmp(n1) = str_sub_str(tdata_tmp(n1),"    "," ")   ; remove extra white space
-    tdata_tmp(n1) = str_sub_str(tdata_tmp(n1),"   "," ")    ; remove extra white space
-    tdata_tmp(n1) = str_sub_str(tdata_tmp(n1),"  "," ")     ; remove extra white space
-    tdata_tmp(n1) = str_strip(tdata_tmp(n1))                ; remove extra white space
-    tdata(n2,1::) = tofloat(str_split_csv(tdata_tmp(n1)," ",0))  ; convert to float
-    tdata(n2,0) = nstorm - 1   ; assign first dimension as storm number
-    n2 = n2 + 1
-  else  ; if 's' in the header
-    dur(nstorm)     = stringtoint(str_get_field(tdata_tmp(n1),2," "))
-    s_year(nstorm)  = stringtoint(str_get_field(tdata_tmp(n1),3," "))
-    s_month(nstorm) = stringtoint(str_get_field(tdata_tmp(n1),4," "))
-    s_day(nstorm)   = stringtoint(str_get_field(tdata_tmp(n1),5," "))
-    s_hour(nstorm)  = stringtoint(str_get_field(tdata_tmp(n1),6," "))
-    s_id(nstorm)    = stringtoint(str_get_field(tdata_tmp(n1),7," "))
-    if (n1 .ne. 0) then
-      e_year(nstorm-1)  = floattoint(tdata(n2-1,5))
-      e_month(nstorm-1) = floattoint(tdata(n2-1,6))
-    end if
-    nstorm = nstorm + 1
-    continue
-  end if
+do ii = 0,nstorms_tot-1
+  e_year(ii)  = t_yyyy(ii,s_dur(ii)-1)
+  e_month(ii) = t_mm(ii,s_dur(ii)-1)
 end do
-e_year(nstorm-1)  = floattoint(tdata(n2-1,5))
-e_month(nstorm-1) = floattoint(tdata(n2-1,6))
 
-delete([/tdata_tmp,n1,n2,nstorms_tot,nstorm,first,nrows,ncol/])
-
-; tsub now contains all trajectory information with the following columns
-; 0 = storm number
-; 1 = longitude
-; 2 = latitude
-; 3 = wind speed
-; 4 = sea level pressure
-; 5 = year
-; 6 = month
-; 7 = day
-; 8 = hour
+delete([/tdata,nstorms_tot,headerDelimStr,maxLines,ncols/])
 
 ;========================================================
 ; Select storms within desired time period
@@ -240,15 +216,8 @@ do jtc = 0,ntc-1
   itcc = s_id(itc)
   print("Storm Number: "+itcc)
   print("  "+s_year(itc)+" "+s_month(itc)+" "+s_day(itc))
-
-  ; select trajectory information for individual storm
-  tsub_ind = ind(tdata(:,0) .eq. itc)
-  tsub = tdata(tsub_ind,:)
   
-  dims = dimsizes(tsub)
-  nrows = dims(0)
-
-  delete([/tsub_ind,dims/])
+  nrows = s_dur(itc)
 
   ;========================================================
   ; Reset lat bounds to namelist and filter by hemisphere
@@ -259,8 +228,8 @@ do jtc = 0,ntc-1
   lonmin=nllonmin
   lonmax=nllonmax
 
-  orilat=tsub(0,2)
-  orilon=tsub(0,1)
+  orilat=t_lat(itc,0)
+  orilon=t_lon(itc,0)
 
   if (orilat .gt. 0) then
     print("NH storm, restricting lats")
@@ -269,7 +238,6 @@ do jtc = 0,ntc-1
     print("SH storm, restricting lats")
     latmax=0.0
   end if
-
 
   ;========================================================
   ; Test for correct basin
@@ -291,19 +259,19 @@ do jtc = 0,ntc-1
 
     if (orilon .gt. 360.0-maskspacing) then
       orilon=360.0-maskspacing
-      print("    original lon: "+tsub(0,1)+"   modified lon: "+orilon)
+      print("    original lon: "+t_lon(itc,0)+"   modified lon: "+orilon)
     end if
 
     if (tcMask({orilat},{orilon}) .ne. basin) then
       print("  user-specified basin: "+tcMask({orilat},{orilon})+" != this traj basin: "+basin+ \
         "... skipping storm")
       print(" ")
-      delete([/tsub,nrows,tcMask,orilat,orilon/])
+      delete([/nrows,tcMask,orilat,orilon/])
       continue
-    else if (abs(tsub(nrows-1,2)) .lt. minlatetc) then
+    else if (abs(t_lat(itc,s_dur(itc)-1)) .lt. minlatetc) then
       print("      Storm dissipates... skipping storm")
       print(" ")
-      delete([/tsub,nrows,tcMask/])
+      delete([/nrows,tcMask/])
       continue
     end if
     end if
@@ -322,7 +290,7 @@ do jtc = 0,ntc-1
   ;========================================================
 
   ; convert longitude (0 to 360) to (-180 to 180)
-  tsub(:,1) = where(tsub(:,1) .gt. 180, tsub(:,1) - 360, tsub(:,1))
+  t_lon(itc,:) = where(t_lon(itc,:) .gt. 180, t_lon(itc,:) - 360, t_lon(itc,:))
   
   ; convert start time to match data calendar format
 
@@ -335,9 +303,9 @@ do jtc = 0,ntc-1
   ; allow npastdays days past the end of TC phase
   npastdays=14.
   if ( str_match_bool_ic(s_time@units,"days") ) then
-    e_time = s_time + (dur(itc)/4.) + npastdays
+    e_time = s_time + (s_dur(itc)/4.) + npastdays
   else if ( str_match_bool_ic(s_time@units,"hours") ) then
-    e_time = s_time + (dur(itc)*6.) + (npastdays*24.)
+    e_time = s_time + (s_dur(itc)*6.) + (npastdays*24.)
   else
     print("confused about time units, check time units on input netcdf data, exiting...")
     exit
@@ -363,7 +331,7 @@ do jtc = 0,ntc-1
   if (s_time .lt. min(timeArr)) then
     print("Traj sttime: "+s_time+"  min gridded time: "+min(timeArr))
     print("start of traj lies outside available gridded data times, skipping...")
-    delete([/tsub,nrows/])
+    delete([/nrows/])
     continue
   else
     if (e_time .gt. max(timeArr)) then
@@ -577,11 +545,10 @@ do jtc = 0,ntc-1
   print("Tracking storm...")
 
   ; set values to trajectory
-  minP(0:nrows-1) = tsub(:,4)      ; minimum pressure values
-  minPlat(0:nrows-1) = tsub(:,2)   ; latitude of minimum pressure
-  minPlon(0:nrows-1) = tsub(:,1)   ; longitude of minimum pressure
-  V(0:nrows-1) = tsub(:,3)         ; max wind speed
-  delete(tsub)
+  minP(0:nrows-1) = t_pres(itc,0:nrows-1)      ; minimum pressure values
+  minPlat(0:nrows-1) = t_lat(itc,0:nrows-1)    ; latitude of minimum pressure
+  minPlon(0:nrows-1) = t_lon(itc,0:nrows-1)    ; longitude of minimum pressure
+  V(0:nrows-1) = t_wind(itc,0:nrows-1)         ; max wind speed
 
   ; if we have 0->360 gridded data, let's check to see if we have -180-180 traj lon
   ; if so, change traj data to match gridded data coords
