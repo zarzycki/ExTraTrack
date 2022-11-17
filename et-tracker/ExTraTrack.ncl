@@ -63,8 +63,8 @@ IGNORE_DISSIPATORS=False
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
 ; else, will read in command line vars year_min_str, year_max_str and convert to ints
 if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
-  year_min = 2001
-  year_max = 2001
+  year_min = 1980
+  year_max = 2022
   print("No CLI year_min_str / year_max_str,   using hardcoded: "+year_min+"   "+year_max)
 else
   year_min=toint(year_min_str)
@@ -167,6 +167,11 @@ t_lon = tofloat(tdata(:,trajinds(0),:))
 t_lat = tofloat(tdata(:,trajinds(1),:))
 t_wind = tofloat(tdata(:,trajinds(2),:))
 t_pres = tofloat(tdata(:,trajinds(3),:))
+if (max(t_pres) .gt. 1100.) then
+  print("WARNING: found pressures >1100. in track file, assuming Pa -> correcting to hPa")
+  t_pres = t_pres/100.
+end if
+
 ; Assume last 4 vars are YYYY MM DD HH
 t_yyyy=  toint(tdata(:,tdata_nvars-4,:))
 t_mm= toint(tdata(:,tdata_nvars-3,:))

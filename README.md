@@ -45,7 +45,7 @@ Sample scripts for generating TC trajectories using TempestExtremes are found in
 
 `${TCTRAJ}` is usually placed in `./text_files/` and is used by `reanalysis_et_cyclone_traj.ncl` and `et_yearly_clim.ncl`
 
-**NOTE:** ExTraTrack by default wraps over the top of the TempestExtremes track format. Files are ASCII containing multiple trajectories. They can be delimited by tabs or spaces.
+**NOTE:** ExTraTrack by default wraps over the top of the TempestExtremes track format. Files are ASCII containing multiple trajectories. They can be delimited by tabs or spaces. If you use a different tracking software, you must either reformat your data to match this format or edit the trajectory interface layer in ExTraTrack. A sample supported trajectory is in the sample data file linked above.
 
 each trajectory consists of a header line...
 ```
@@ -60,10 +60,18 @@ IX JY LON LAT WIND PRES VAR1 VAR2 ... VARN PSL YYYY MM DD HH
 **For ExTraTrack to parse this file correctly, the user must tell ExTraTrack what columns (0-based) correspond to the lon, lat, maximum surface wind, and minimum pressure values. This is specified by namelist parameter:
 
 ```
-trajinds=2,3,4,5,
+trajinds=2,3,5,4,
 ```
 
-For example, the above tells ExTraTrack that the lon is in the third column, lat is in the fourth, etc. (again, zero indexed).
+For example, the above tells ExTraTrack that the lon is in the third column, lat is in the fourth, wind is in the sixth, etc. (again, remember zero-indexed!).
+
+Winds should be in m/s and pressure can be in either mb/hPa (preferred) or Pa (will be corrected inline).
+
+You can use previously "post-processed" ExTraTrack trajectory input files by using:
+
+```
+trajinds=0,1,2,3,
+```
 
 More information is below.
 
