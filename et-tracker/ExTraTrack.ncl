@@ -91,7 +91,7 @@ r2d = (1./d2r)
 ; debugging
 plot_test=False
 plot_phase = True
-plot_track =False 
+plot_track =False
 do_debug=False
 
 ;========================================================
@@ -197,7 +197,7 @@ delete([/tdata,nstorms_tot,headerDelimStr,maxLines,ncols/])
 ;========================================================
 ; Select storms within desired time period
 ;========================================================
-  
+
 ; find indices where data is between given year/month min and max
 ind_storm = ind(((s_year .eq. year_min .and. s_month .ge. month_min) .or.  \
                  (s_year .gt. year_min .and. s_year .le. year_max)) .and. \
@@ -221,7 +221,7 @@ do jtc = 0,ntc-1
   itcc = s_id(itc)
   print("Storm Number: "+itcc)
   print("  "+s_year(itc)+" "+s_month(itc)+" "+s_day(itc))
-  
+
   nrows = s_dur(itc)
 
   ;========================================================
@@ -296,7 +296,7 @@ do jtc = 0,ntc-1
 
   ; convert longitude (0 to 360) to (-180 to 180)
   t_lon(itc,:) = where(t_lon(itc,:) .gt. 180, t_lon(itc,:) - 360, t_lon(itc,:))
-  
+
   ; convert start time to match data calendar format
 
   OPT=0
@@ -319,14 +319,14 @@ do jtc = 0,ntc-1
   e_time@units := s_time@units
   e_time@calendar := s_time@calendar
 
-  ; convert time to date format for selecting files  
+  ; convert time to date format for selecting files
   end_date = cd_calendar(e_time,0)
   e_mon_str = sprinti("%0.2i",floattoint(end_date(0,1)))
   e_year = end_date(0,0)
-  
+
   print("TC start time: "+cd_calendar(s_time,-3))
   print("Extended end time: "+cd_calendar(e_time,-3))
-  
+
   delete(end_date)
 
   ;========================================================
@@ -367,7 +367,7 @@ do jtc = 0,ntc-1
   ;========================================================
   ; Figure out level name
   ;========================================================
-  
+
   if isfilevarcoord( input1[0], "Z", "lev") then
     levname="lev"
   else if isfilevarcoord( input1[0], "Z", "level") then
@@ -379,7 +379,7 @@ do jtc = 0,ntc-1
   end if
   end if
   print("levname: "+levname)
-  
+
   ;========================================================
   ; Check Z levs
   ;========================================================
@@ -387,19 +387,19 @@ do jtc = 0,ntc-1
   ; Check to make sure levels are oriented from top to bottom (i.e., low P to high P)
   flipLev=False
   lev_in = input1[0]->$levname$
-  lev = tofloat(lev_in) 
+  lev = tofloat(lev_in)
  	nlev = dimsizes(lev)
   if (lev(0) .gt. lev(nlev-1)) then
     print("WARNING: levs ordered from bottom (1000mb) to top (300mb)")
     print("WARNING: attempting to reverse, but you should check this!")
     flipLev=True
   end if
-	delete([/lev,lev_in/])  
+	delete([/lev,lev_in/])
 
   ;========================================================
   ; Load Z
   ;========================================================
-	
+
 	print("Loading geopotential heights")
   if (flipLev) then
     Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
@@ -408,10 +408,10 @@ do jtc = 0,ntc-1
     Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
 	  ;Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,:)
   end if
-  
+
   ; make sure we are ordered correctly
   Z3 := Z3(time|:,$levname$|:,lat|:,lon|:)
-  
+
 	if (max(Z3) .gt. 20000.) then
 	  print("WARNING: Z seems high, do you have geopotential instead of geo height?")
 	  print("WARNING: dividing by g, but you should check this!")
@@ -435,11 +435,11 @@ do jtc = 0,ntc-1
 	indtop = closest_val(cpslevs(0),pnew)      ; top index for VTU
 	indmid = closest_val(cpslevs(1),pnew)      ; bottom index for VTU, top index for B, VTL
 	indbot = closest_val(cpslevs(2),pnew)      ; bottom index for B, VTL
-	
-	; compute weights from latitudes  
+
+	; compute weights from latitudes
 	wgt = cos((Z3&lat)*d2r)
 
-  ; flip longitude for geopotential height 
+  ; flip longitude for geopotential height
 	Z = Z3(:,:,:,{lonmin-eps:lonmax})
   delete([/Z3/])
   print("... done loading geopotential height")
@@ -455,7 +455,7 @@ do jtc = 0,ntc-1
   ; flip longitude
 	UBOT = UBOT_in(:,:,{lonmin-eps:lonmax})
 	VBOT = VBOT_in(:,:,{lonmin-eps:lonmax})
-	delete([/UBOT_in,VBOT_in/])  
+	delete([/UBOT_in,VBOT_in/])
 
   UBOTMAG = ((VBOT^2 + UBOT^2)^(0.5))
 
@@ -493,10 +493,10 @@ do jtc = 0,ntc-1
   copy_VarMeta(lon_in,lon)
 	delete([/lat_in,lon_in/])
 
-	; flip longitude for sea level pressure  
+	; flip longitude for sea level pressure
 	PSL_all = input1[:]->PSL({s_time:e_time},{latmin:latmax},:)
 	PSL_in = PSL_all(:,:,{lonmin-eps:lonmax})
-    
+
   date = cd_calendar(input1[:]->time({s_time:e_time}),-2)
 	delete([/PSL_all,input1,s_time,e_time/])
 
@@ -505,7 +505,7 @@ do jtc = 0,ntc-1
   copy_VarMeta(PSL_in,PSL)
   PSL@units := "hPa"
   delete(PSL_in)
-    
+
   ; assign fill value for missing if doesn't exist
   if(.not.isatt(PSL,"_FillValue")) then
     PSL@_FillValue := 9.969209968386869e+36
@@ -523,14 +523,14 @@ do jtc = 0,ntc-1
 
   ;========================================================
   ; Preallocate arrays
-  ;======================================================== 
+  ;========================================================
 
   ; record dimension sizes
   ntime = dimsizes(time)  ; time
   nlat = dimsizes(lat)    ; latitude
   nlon = dimsizes(lon)    ; longitude
 
-  ; preallocate arrays for minimum pressure value and locations  
+  ; preallocate arrays for minimum pressure value and locations
   minP    = new(ntime,float)   ; minimum pressure value (Pa)
   minPlat = new(ntime,float)   ; minimum pressure latitude
   minPlon = new(ntime,float)   ; minimum pressure longitude
@@ -542,10 +542,10 @@ do jtc = 0,ntc-1
   Vlt     = new(ntime,float)   ; lower troposphere thermal wind (Hart 2003)
   Vut     = new(ntime,float)   ; upper troposphere thermal wind (Hart 2003)
   ang_all = new((/nlat,nlon/),float) ; angle of all values from storm center
- 
+
   ;========================================================
   ; Compute values during TC tracker
-  ;======================================================== 
+  ;========================================================
 
   print("Tracking storm...")
 
@@ -612,7 +612,7 @@ do jtc = 0,ntc-1
   ; call function to create et plot
   ;========================================================
 
-  if (plot_track) then  
+  if (plot_track) then
     do ii = 0, nrows-1
       et_track_plot(type,itc,ii,lat,lon,date(ii),minP(ii),minPlat(ii),minPlon(ii), \
                     PSL(ii,:,:),PSL(ii,:,:))
@@ -677,15 +677,15 @@ do jtc = 0,ntc-1
         ; Test if each local min is a valid storm
         ;========================================================
 
-        ; preallocate arrays	
+        ; preallocate arrays
         locmin_test = new(nmins,logical)  ; test if local min is valid
         minP_tmp = new(nmins,float)       ; minimum pressure value
         dist_tmp = new(nmins,float)       ; distance traveled (km)
         ang_tmp = new(nmins,float)        ; storm bearing (degrees)
         d_ang_tmp = new(nmins,float)      ; change in bearing (degrees)
-  
 
-  
+
+
         ; loop over all local minimums
         do jmin = 0,nmins-1
 
@@ -700,9 +700,9 @@ do jtc = 0,ntc-1
                                minP_tmp(jmin),locmin_lat(jmin),locmin_lon(jmin), \
                      dist_tmp(jmin),d_ang_tmp(jmin))
         end do
-  
+
         delete(jmin)
-  
+
         locmin_true = ind(locmin_test)   ; gather indices where storm is valid
 
 
@@ -731,7 +731,7 @@ do jtc = 0,ntc-1
             minPind=minPindTmp
             delete(minPindTmp)
           end if
-  
+
           minPlat(i) = (/locmin_lat(minPind)/)   ; latitude of minimum pressure
           minPlon(i) = (/locmin_lon(minPind)/)   ; longitude of minimum pressure
           minP(i) = minP_tmp(minPind)            ; minimum pressure value
@@ -739,17 +739,17 @@ do jtc = 0,ntc-1
           V(i) = V_tmp                    ; max wind speed
           ang(i) = ang_tmp(minPind)       ; storm bearing
           d_ang(i) = d_ang_tmp(minPind)   ; change in storm direction
-    
+
           delete(minPind)
         else ; stop tracking if no local min satisfies all tests
           delete([/PSL_tmp,locmin,locmin_lat,locmin_lon,nmins/])
           delete([/locmin_test,minP_tmp,dist_tmp,V_tmp,ang_tmp,d_ang_tmp,locmin_true/])
           break
         end if
-  
+
         delete([/locmin,locmin_lat,locmin_lon,nmins/])
         delete([/locmin_test,minP_tmp,dist_tmp,V_tmp,ang_tmp,d_ang_tmp,locmin_true/])
-    
+
       else  ; stop tracking if no local min exists
         delete([/PSL_tmp,locmin/])
         break
@@ -791,7 +791,7 @@ do jtc = 0,ntc-1
         et_track_plot(type,itc,i,lat,lon,date(i), \
                       minP(i),minPlat(i),minPlon(i),PSL_tmp,PSL(i,:,:))
       end if
-  
+
       delete(PSL_tmp)
 
     end if ; check to see if storm is still in domain
@@ -828,7 +828,7 @@ do jtc = 0,ntc-1
   end if
 
   delete([/date/])
-  
+
   ;========================================================
   ; Write output to text file
   ;========================================================
@@ -837,10 +837,10 @@ do jtc = 0,ntc-1
 
   textfiledir="./text_files/"
   timingfiledir="./timing_files/"
-  
+
   ; make text and timing file folders if they do not exist.
-  if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir "+timingfiledir+"/")
+  if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
+    system("mkdir "+textfiledir+"/")
   end if
   if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
     system("mkdir "+timingfiledir+"/")
@@ -863,7 +863,7 @@ do jtc = 0,ntc-1
 
   st_date = cd_calendar(time(0:i-1),0)  ; get date at each time step
 
-  ; write storm data to ascii file (append to header)   
+  ; write storm data to ascii file (append to header)
   write_table(textfiledir+"/tmp_"+type+"_"+sprinti("%0.4i",itcc)+".txt","a", \
     [/minPlon(0:i-1),minPlat(0:i-1),minP(0:i-1), \
     V(0:i-1),dist(0:i-1),ang(0:i-1), \
@@ -877,12 +877,12 @@ do jtc = 0,ntc-1
   ENDTIME=stringtointeger(systemfunc("date -u +%s"))
   TOTTIME=ENDTIME-STARTTIME
   asciiwrite (timingfiledir+"/timing_"+type+"_"+sprinti("%0.4i",itcc)+".TIME",TOTTIME)
-  
+
   delete([/i,itc,itcc,time,st_date,minPlon,minPlat,minP,V,dist,ang,d_ang,B,Vlt,Vut/])
 
   print("Done with storm.")
   print(" ")
 
 end do ; end storm loop
-  
+
 end
