@@ -55,66 +55,66 @@ catfile = namelist_extract( nlfile, "etfileavg", "string")
 ; Read in ET storm trajectories
 ;========================================================
 
-  etdata_tmp = asciiread(etfile,-1,"string")  ; read in trajectory data as strings
-  dims = dimsizes(etdata_tmp)   ; get dimensions
-  nrows = dims(0)               ; get number of rows
-  ncol = 13                     ; assign number of columns
-  delete([/etfile,dims/])
+etdata_tmp = asciiread(etfile,-1,"string")  ; read in trajectory data as strings
+dims = dimsizes(etdata_tmp)   ; get dimensions
+nrows = dims(0)               ; get number of rows
+ncol = 13                     ; assign number of columns
+delete([/etfile,dims/])
 
 ; create new array that will hold all data except rows containing start information
 ; add column to contain storm number
-  etdata_all = new((/nrows,ncol+1/),float)
-  
-  storm_all = new(nrows,integer)
-  
-; loop over lines of trajectory data, convert string to float
-  n2 = 0       ; counter data without header lines
-  num_tot = 0  ; total number of storms
-  do n1 = 0,nrows-1  ; loop over all data with header lines
-    first = str_get_cols(etdata_tmp(n1),0,0)   ; obtain first character of row
-    if (first .ne. "s") then              ; if not 's', this is not a header
-      etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"    "," ")  ; remove extra white space
-      etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"   "," ")   ; remove extra white space
-      etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"  "," ")    ; remove extra white space
-      etdata_tmp(n1) = str_strip(etdata_tmp(n1))               ; remove extra white space
-      etdata_all(n2,1::) = tofloat(str_split_csv(etdata_tmp(n1)," ",0)) ; convert to float
-      etdata_all(n2,0) = s_num   ; assign first dimension as storm number
-      n2 = n2 + 1
-    else  ; if 's' in the header
-      s_num  = stringtoint(str_get_cols(etdata_tmp(n1),41,44))
-      storm_all(num_tot) = s_num
-      num_tot = num_tot + 1
-      continue
-    end if
-  end do
-  
-; remove extra lines of missing data
-  etdata = etdata_all(0:n2-1,:)
-  storm = storm_all(0:num_tot-1)
+etdata_all = new((/nrows,ncol+1/),float)
 
-  delete([/etdata_tmp,etdata_all,storm_all,n1,n2,first,nrows,ncol/])
+storm_all = new(nrows,integer)
+
+; loop over lines of trajectory data, convert string to float
+n2 = 0       ; counter data without header lines
+num_tot = 0  ; total number of storms
+do n1 = 0,nrows-1  ; loop over all data with header lines
+  first = str_get_cols(etdata_tmp(n1),0,0)   ; obtain first character of row
+  if (first .ne. "s") then              ; if not 's', this is not a header
+    etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"    "," ")  ; remove extra white space
+    etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"   "," ")   ; remove extra white space
+    etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"  "," ")    ; remove extra white space
+    etdata_tmp(n1) = str_strip(etdata_tmp(n1))               ; remove extra white space
+    etdata_all(n2,1::) = tofloat(str_split_csv(etdata_tmp(n1)," ",0)) ; convert to float
+    etdata_all(n2,0) = s_num   ; assign first dimension as storm number
+    n2 = n2 + 1
+  else  ; if 's' in the header
+    s_num  = stringtoint(str_get_cols(etdata_tmp(n1),41,44))
+    storm_all(num_tot) = s_num
+    num_tot = num_tot + 1
+    continue
+  end if
+end do
+
+; remove extra lines of missing data
+etdata = etdata_all(0:n2-1,:)
+storm = storm_all(0:num_tot-1)
+
+delete([/etdata_tmp,etdata_all,storm_all,n1,n2,first,nrows,ncol/])
 
 ;========================================================
 ; Get data and dates
 ;========================================================
 
 ; read in data
-  snum = etdata(:,0)
-  lon  = etdata(:,1)
-  lat  = etdata(:,2)
-  pres = etdata(:,3)
-  V    = etdata(:,4)
-  dist = etdata(:,5)
-  ang  = etdata(:,6)
-  B    = etdata(:,7)
-  Vlt  = etdata(:,8)
-  Vut  = etdata(:,9)
-  year = etdata(:,10)
-  mon  = etdata(:,11)
-  day  = etdata(:,12)
-  hour = etdata(:,13)
-  
-  delete([/etdata/])
+snum = etdata(:,0)
+lon  = etdata(:,1)
+lat  = etdata(:,2)
+pres = etdata(:,3)
+V    = etdata(:,4)
+dist = etdata(:,5)
+ang  = etdata(:,6)
+B    = etdata(:,7)
+Vlt  = etdata(:,8)
+Vut  = etdata(:,9)
+year = etdata(:,10)
+mon  = etdata(:,11)
+day  = etdata(:,12)
+hour = etdata(:,13)
+
+delete([/etdata/])
 
 ;========================================================
 ; Loop over each storm
@@ -124,10 +124,9 @@ do i = 0,num_tot-1
   itc = storm(i)   ; storm number
   print("Storm Number: "+itc)
 
-; select range for individual storm
+  ; select range for individual storm
   etsub = ind(snum .eq. itc)
   
-; ignore first data point (missing values mess up running avg)
   lon_sub  = lon(etsub(0::))
   lat_sub  = lat(etsub(0::))
   pres_sub = pres(etsub(0::))
@@ -144,17 +143,17 @@ do i = 0,num_tot-1
   
   ; set fill values
   fillvalue = -999.00
-  B_sub@_FillValue = -999.0
-  Vlt_sub@_FillValue = -999.0
-  Vut_sub@_FillValue = -999.0
+  B_sub@_FillValue = fillvalue
+  Vlt_sub@_FillValue = fillvalue
+  Vut_sub@_FillValue = fillvalue
 
   delete(etsub)
 
-;========================================================
-; running avg
-;========================================================
+  ;========================================================
+  ; running avg
+  ;========================================================
 
-; perform running avg over hourmean hours
+  ; perform running avg over hourmean hours
   nave = toint(hourmean/datafreq) + 1
   opt = 1    ; reflective (symmetric) conditions
   
@@ -170,9 +169,9 @@ do i = 0,num_tot-1
   
   delete([/nave,opt,B_sub,Vlt_sub,Vut_sub/])
 
-;========================================================
-; Write output to text file
-;========================================================
+  ;========================================================
+  ; Write output to text file
+  ;========================================================
 
   print("Writing to trajectory ascii file...")
 
@@ -184,15 +183,15 @@ do i = 0,num_tot-1
     system("mkdir "+textfiledir+"/")
   end if
 
-; remove text file if it already exists
+  ; remove text file if it already exists
   system("rm -f "+textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt")
   
-; write header line for storm
+  ; write header line for storm
   write_table(textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt","w", \
               [/"start",dur,year_sub(0),mon_sub(0),day_sub(0),hour_sub(0),itc/], \
               "%s   %03i  %4.0f      %02.0f    %02.0f    %02.0f    %04i")
 
-; write storm data to ascii file (append to header)   
+  ; write storm data to ascii file (append to header)   
   write_table(textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt","a", \
     [/lon_sub,lat_sub,pres_sub, \
     V_sub,dist_sub,ang_sub, \
@@ -211,7 +210,7 @@ do i = 0,num_tot-1
   
 end do  ; end storm loop
 
-  system("cat "+textfiledir+"/"+outfile+"* > "+catfile)
-  system("rm -f "+textfiledir+"/"+outfile+"*")
+system("cat "+textfiledir+"/"+outfile+"* > "+catfile)
+system("rm -f "+textfiledir+"/"+outfile+"*")
 	
 end
