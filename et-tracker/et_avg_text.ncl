@@ -103,12 +103,12 @@ catfile = namelist_extract( nlfile, "etfileavg", "string")
   lon  = etdata(:,1)
   lat  = etdata(:,2)
   pres = etdata(:,3)
-  V    = where(etdata(:,4) .eq. -999, etdata@_FillValue,etdata(:,4))
-  dist = where(etdata(:,5) .eq. -999, etdata@_FillValue,etdata(:,5))
-  ang  = where(etdata(:,6) .eq. -999, etdata@_FillValue,etdata(:,6))
-  B    = where(etdata(:,7) .eq. -999, etdata@_FillValue,etdata(:,7))
-  Vlt  = where(etdata(:,8) .eq. -999, etdata@_FillValue,etdata(:,8))
-  Vut  = where(etdata(:,9) .eq. -999, etdata@_FillValue,etdata(:,9))
+  V    = etdata(:,4)
+  dist = etdata(:,5)
+  ang  = etdata(:,6)
+  B    = etdata(:,7)
+  Vlt  = etdata(:,8)
+  Vut  = etdata(:,9)
   year = etdata(:,10)
   mon  = etdata(:,11)
   day  = etdata(:,12)
@@ -128,20 +128,26 @@ do i = 0,num_tot-1
   etsub = ind(snum .eq. itc)
   
 ; ignore first data point (missing values mess up running avg)
-  lon_sub  = lon(etsub(1::))
-  lat_sub  = lat(etsub(1::))
-  pres_sub = pres(etsub(1::))
-  V_sub    = V(etsub(1::))
-  dist_sub = dist(etsub(1::))
-  ang_sub  = ang(etsub(1::))
-  B_sub    = B(etsub(1::))
-  Vlt_sub  = Vlt(etsub(1::))
-  Vut_sub  = Vut(etsub(1::))
-  year_sub = year(etsub(1::))
-  mon_sub  = mon(etsub(1::))
-  day_sub  = day(etsub(1::))
-  hour_sub = hour(etsub(1::))
+  lon_sub  = lon(etsub(0::))
+  lat_sub  = lat(etsub(0::))
+  pres_sub = pres(etsub(0::))
+  V_sub    = V(etsub(0::))
+  dist_sub = dist(etsub(0::))
+  ang_sub  = ang(etsub(0::))
+  B_sub    = B(etsub(0::))
+  Vlt_sub  = Vlt(etsub(0::))
+  Vut_sub  = Vut(etsub(0::))
+  year_sub = year(etsub(0::))
+  mon_sub  = mon(etsub(0::))
+  day_sub  = day(etsub(0::))
+  hour_sub = hour(etsub(0::))
   
+  ; set fill values
+  fillvalue = -999.00
+  B_sub@_FillValue = -999.0
+  Vlt_sub@_FillValue = -999.0
+  Vut_sub@_FillValue = -999.0
+
   delete(etsub)
 
 ;========================================================
@@ -152,9 +158,13 @@ do i = 0,num_tot-1
   nave = toint(hourmean/datafreq) + 1
   opt = 1    ; reflective (symmetric) conditions
   
-  B_avg = runave_Wrap(B_sub,nave,opt)
-  Vlt_avg = runave_Wrap(Vlt_sub,nave,opt)
-  Vut_avg = runave_Wrap(Vut_sub,nave,opt)
+  B_avg = B_sub
+  Vlt_avg = Vlt_sub
+  Vut_avg = Vut_sub
+
+  B_avg(1::) = runave_Wrap(B_sub(1::),nave,opt)
+  Vlt_avg(1::) = runave_Wrap(Vlt_sub(1::),nave,opt)
+  Vut_avg(1::) = runave_Wrap(Vut_sub(1::),nave,opt)
   
   dur = dimsizes(B_avg)
   
