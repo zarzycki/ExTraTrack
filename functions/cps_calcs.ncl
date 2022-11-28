@@ -83,7 +83,7 @@ begin
   
     delete([/jlat,jlon/])
 
-    if (1 .eq. 0) then
+    if (opt@debug) then
       print("... writing out B to tmp netCDF")
       dtime_map = (/4,2,2,2/)
       splitDate = str_split_by_length(tostring(opt@date),dtime_map)

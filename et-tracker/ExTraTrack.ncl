@@ -93,6 +93,7 @@ plot_test=False
 plot_phase = True
 plot_track =False
 do_debug=False
+B_print_nc=False
 
 ;========================================================
 ; Do some sanity checking and internal setting
@@ -581,6 +582,11 @@ do jtc = 0,ntc-1
     opt@date:=cd_calendar(time(i),3)
     opt@id:=itc
     opt@v_interp=vt_calc_method  ; regline or simple
+    if (B_print_nc) then
+      opt@debug=True
+    else
+      opt@debug=False
+    end if
 
     ;========================================================
     ; Find thickness of the right and left hand sides of storm
@@ -761,6 +767,11 @@ do jtc = 0,ntc-1
       opt=0
       opt@date:=cd_calendar(time(i),3)
       opt@id:=itc
+      if (B_print_nc) then
+        opt@debug:=True
+      else
+        opt@debug:=False
+      end if
 
       ;========================================================
       ; Find thickness of the right and left hand sides of storm
