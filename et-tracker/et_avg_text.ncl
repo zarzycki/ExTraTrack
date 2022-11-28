@@ -4,6 +4,8 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
 load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 load "../functions/namelist_extract.ncl"
+load "../functions/getTrajectoriesGeneric.ncl"
+load "../functions/getStormIndices.ncl"
 ;========================================================
 ; reads in ET trajectories from "raw" tracker
 ; performs a running mean on B, Vut, and Vlt fields
@@ -40,14 +42,20 @@ etfile = namelist_extract( nlfile, "etfileori", "string")
 ; type string (used for defining output), generally a model shortname
 typestr = namelist_extract( nlfile, "type", "string")
 
-; running average time period (hrs)
-hourmean = 24.
-
 ; frequency of output data (hrs)
 datafreq = namelist_extract( nlfile, "hrintvl", "float")
 
 ; average file
 catfile = namelist_extract( nlfile, "etfileavg", "string")
+
+;========================================================
+; Default namelist settings
+;========================================================
+
+nldefaults="./defaults/defaults.nl"
+
+; running average time period (hrs)
+hourmean = namelist_extract( nldefaults, "hourmean", "float")
 
 ;**********************************************************************************
 
@@ -55,99 +63,121 @@ catfile = namelist_extract( nlfile, "etfileavg", "string")
 ; Read in ET storm trajectories
 ;========================================================
 
-etdata_tmp = asciiread(etfile,-1,"string")  ; read in trajectory data as strings
-dims = dimsizes(etdata_tmp)   ; get dimensions
-nrows = dims(0)               ; get number of rows
-ncol = 13                     ; assign number of columns
-delete([/etfile,dims/])
+;========================================================
+; Read in TC-only trajectories from traj file
+;========================================================
 
-; create new array that will hold all data except rows containing start information
-; add column to contain storm number
-etdata_all = new((/nrows,ncol+1/),float)
+print("Loading TC trajectories")
 
-storm_all = new(nrows,integer)
+; read in trajectory data from ascii file
+; get number of storms by counting number of lines with 'start'
+nstorms_tot = stringtoint(systemfunc("grep 'start' "+etfile+" | wc -l"))
+print("   Total number of storms = "+nstorms_tot)
 
-; loop over lines of trajectory data, convert string to float
-n2 = 0       ; counter data without header lines
-num_tot = 0  ; total number of storms
-do n1 = 0,nrows-1  ; loop over all data with header lines
-  first = str_get_cols(etdata_tmp(n1),0,0)   ; obtain first character of row
-  if (first .ne. "s") then              ; if not 's', this is not a header
-    etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"    "," ")  ; remove extra white space
-    etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"   "," ")   ; remove extra white space
-    etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"  "," ")    ; remove extra white space
-    etdata_tmp(n1) = str_strip(etdata_tmp(n1))               ; remove extra white space
-    etdata_all(n2,1::) = tofloat(str_split_csv(etdata_tmp(n1)," ",0)) ; convert to float
-    etdata_all(n2,0) = s_num   ; assign first dimension as storm number
-    n2 = n2 + 1
-  else  ; if 's' in the header
-    s_num  = stringtoint(str_get_cols(etdata_tmp(n1),41,44))
-    storm_all(num_tot) = s_num
-    num_tot = num_tot + 1
-    continue
-  end if
+ncols = -1                    ; assign number of columns
+maxLines = -1
+headerDelimStr = "start"
+tdata = getTrajectoriesGeneric(etfile,ncols,maxLines,headerDelimStr,False,False)
+tdata_dims = dimsizes(tdata)
+tdata_nstorms = tdata_dims(0)
+tdata_nvars = tdata_dims(1)
+tdata_ntimes = tdata_dims(2)
+
+; All arrays beginning t_??? are nstorms x ntimes array containing relevant
+; TC trajectory information from TempestExtremes
+; Use user-defined trajinds to set lon, lat, wind, pres
+trajinds=(/0,1,2,4/)
+t_lon = tofloat(tdata(:,trajinds(0),:))
+t_lat = tofloat(tdata(:,trajinds(1),:))
+
+; Assume last 4 vars are YYYY MM DD HH
+t_yyyy=  toint(tdata(:,tdata_nvars-4,:))
+t_mm= toint(tdata(:,tdata_nvars-3,:))
+t_dd= toint(tdata(:,tdata_nvars-2,:))
+t_hh= toint(tdata(:,tdata_nvars-1,:))
+
+wind  = tofloat(tdata(:,3,:))
+psl   = tofloat(tdata(:,2,:))
+dist  = tofloat(tdata(:,4,:))
+ang   = tofloat(tdata(:,5,:))
+B     = tofloat(tdata(:,6,:))
+Vlt   = tofloat(tdata(:,7,:))
+Vut   = tofloat(tdata(:,8,:))
+
+; set fill values
+fillvalue = -999.00
+dist@_FillValue = fillvalue
+ang@_FillValue = fillvalue
+B@_FillValue = fillvalue
+Vlt@_FillValue = fillvalue
+Vut@_FillValue = fillvalue
+  
+if (max(psl) .gt. 1100.) then
+  print("WARNING: found pressures >1100. in track file, assuming Pa -> correcting to hPa")
+  psl = psl/100.
+end if
+
+; get start/end arrays that are length nstorms
+s_dur   = dim_sum_n(where(.not.ismissing(t_lon),1,0),1)
+s_year  = t_yyyy(:,0)
+s_month = t_mm(:,0)
+s_day   = t_dd(:,0)
+s_hour  = t_hh(:,0)
+s_id    = ispan(0,nstorms_tot-1,1)
+e_year  = new(nstorms_tot,integer)
+e_month = new(nstorms_tot,integer)
+do ii = 0,nstorms_tot-1
+  e_year(ii)  = t_yyyy(ii,s_dur(ii)-1)
+  e_month(ii) = t_mm(ii,s_dur(ii)-1)
 end do
 
-; remove extra lines of missing data
-etdata = etdata_all(0:n2-1,:)
-storm = storm_all(0:num_tot-1)
+; get storm indices from etfile header rows
+s_num = getStormIndices(etfile)
 
-delete([/etdata_tmp,etdata_all,storm_all,n1,n2,first,nrows,ncol/])
+year_min=min(s_year)
+year_max=max(s_year)
 
-;========================================================
-; Get data and dates
-;========================================================
-
-; read in data
-snum = etdata(:,0)
-lon  = etdata(:,1)
-lat  = etdata(:,2)
-pres = etdata(:,3)
-V    = etdata(:,4)
-dist = etdata(:,5)
-ang  = etdata(:,6)
-B    = etdata(:,7)
-Vlt  = etdata(:,8)
-Vut  = etdata(:,9)
-year = etdata(:,10)
-mon  = etdata(:,11)
-day  = etdata(:,12)
-hour = etdata(:,13)
-
-delete([/etdata/])
+delete([/tdata,headerDelimStr,maxLines,ncols,ii/])
 
 ;========================================================
 ; Loop over each storm
 ;========================================================
 
-do i = 0,num_tot-1
-  itc = storm(i)   ; storm number
-  print("Storm Number: "+itc)
+do jj = 0,nstorms_tot-1
 
-  ; select range for individual storm
-  etsub = ind(snum .eq. itc)
+  ; itc is the stormID (i.e., corresponds to integer index from original TE file)
+  ; jtc is the index of the matching stormID in the etfile
+  ; NOTE: unless we are filtering here, jtc should = i
+  itc = s_num(jj)
+  jtc = ind(s_num .eq. itc)
+
+  print("Storm Number: "+itc+" with jtc: "+jtc)
+
+  ; get duration of storm so arrays are only valid values and not missing
+  dur = s_dur(jtc)
   
-  lon_sub  = lon(etsub(0::))
-  lat_sub  = lat(etsub(0::))
-  pres_sub = pres(etsub(0::))
-  V_sub    = V(etsub(0::))
-  dist_sub = dist(etsub(0::))
-  ang_sub  = ang(etsub(0::))
-  B_sub    = B(etsub(0::))
-  Vlt_sub  = Vlt(etsub(0::))
-  Vut_sub  = Vut(etsub(0::))
-  year_sub = year(etsub(0::))
-  mon_sub  = mon(etsub(0::))
-  day_sub  = day(etsub(0::))
-  hour_sub = hour(etsub(0::))
+  ; Extract this storm's info from the master storm arrays
+  lon_sub  = t_lon(jtc,0:dur-1)
+  lat_sub  = t_lat(jtc,0:dur-1)
+  pres_sub = psl(jtc,0:dur-1)
+  V_sub    = wind(jtc,0:dur-1)
+  dist_sub = dist(jtc,0:dur-1)
+  ang_sub  = ang(jtc,0:dur-1)
+  B_sub    = B(jtc,0:dur-1)
+  Vlt_sub  = Vlt(jtc,0:dur-1)
+  Vut_sub  = Vut(jtc,0:dur-1)
+  ; NOTE: we are going to convert this back to float because of Diana's
+  ; original formatting below and the desire to not change that.
+  year_sub = tofloat(t_yyyy(jtc,0:dur-1))
+  mon_sub  = tofloat(t_mm(jtc,0:dur-1))
+  day_sub  = tofloat(t_dd(jtc,0:dur-1))
+  hour_sub = tofloat(t_hh(jtc,0:dur-1))
   
   ; set fill values
   fillvalue = -999.00
   B_sub@_FillValue = fillvalue
   Vlt_sub@_FillValue = fillvalue
   Vut_sub@_FillValue = fillvalue
-
-  delete(etsub)
 
   ;========================================================
   ; running avg
@@ -157,16 +187,16 @@ do i = 0,num_tot-1
   nave = toint(hourmean/datafreq) + 1
   opt = 1    ; reflective (symmetric) conditions
   
+  ; First, set all variables to un-averaged arrays
   B_avg = B_sub
   Vlt_avg = Vlt_sub
   Vut_avg = Vut_sub
 
+  ; Now average excluding the 0th index, which has bad data
   B_avg(1::) = runave_Wrap(B_sub(1::),nave,opt)
   Vlt_avg(1::) = runave_Wrap(Vlt_sub(1::),nave,opt)
   Vut_avg(1::) = runave_Wrap(Vut_sub(1::),nave,opt)
-  
-  dur = dimsizes(B_avg)
-  
+    
   delete([/nave,opt,B_sub,Vlt_sub,Vut_sub/])
 
   ;========================================================
