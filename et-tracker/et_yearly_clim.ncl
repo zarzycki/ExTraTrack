@@ -1,13 +1,8 @@
 ;========================================================
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 load "../functions/mask_tc.ncl"
 load "../functions/namelist_extract.ncl"
 load "../functions/getTrajectoriesGeneric.ncl"
 load "../functions/getStormIndices.ncl"
-
 ;========================================================
 ; reads in TC and ET trajectories
 ; generate ET climatology text files
