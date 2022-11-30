@@ -253,10 +253,11 @@ do loop_ind = 0,ntc-1
   Vlt_tmp = Vlt(jtc,0:dur-1)
   psl_tmp = psl(jtc,0:dur-1)
   
-  year_tmp = t_yyyy(jtc,0:dur-1)
-  mon_tmp = t_mm(jtc,0:dur-1)
-  day_tmp = t_dd(jtc,0:dur-1)
-  hr_tmp = t_hh(jtc,0:dur-1)
+  ; need to be converted back to floats because of diana's output strategy
+  year_tmp = tofloat(t_yyyy(jtc,0:dur-1))
+  mon_tmp = tofloat(t_mm(jtc,0:dur-1))
+  day_tmp = tofloat(t_dd(jtc,0:dur-1))
+  hr_tmp = tofloat(t_hh(jtc,0:dur-1))
 
 ; predefine logicals and et clock
   wc = False   ; warm core dissipation
