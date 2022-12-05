@@ -28,7 +28,7 @@ begin
 
   print(" ")
   print("Storm Number:  " + itc)
-  
+
 
 
 ;========================================================
@@ -47,10 +47,10 @@ begin
 ;    copy_VarCoords(ps_in,ps)
 ;  date_tmp = cd_calendar(input[:]->time,-2)
 ;  date_ps = date_tmp(:)
-;  
+;
 ;  delete([/ps_tmp,date_tmp,fnam1,files1,input,ps_in/])
 
-  
+
 ;========================================================
 ; Read in ET storm trajectories
 ;========================================================
@@ -62,7 +62,7 @@ begin
 ; read in trajectory data from ascii file
 ; get number of storms by counting number of lines with 'start'
   nstorms_tot = stringtoint(systemfunc("grep 'start' "+etdir+etfile+" | wc -l"))
-  
+
   etdata_tmp = asciiread(etdir+etfile,-1,"string")  ; read in trajectory data as strings
   dims = dimsizes(etdata_tmp)   ; get dimensions
   nrows = dims(0)               ; get number of rows
@@ -72,7 +72,7 @@ begin
 ; create new array that will hold all data except rows containing start information
 ; add column to contain storm number
   etdata = new((/nrows-nstorms_tot,ncol+1/),float)
-  
+
 ; loop over lines of trajectory data, convert string to float
   n2 = 0       ; counter data without header lines
   do n1 = 0,nrows-1  ; loop over all data with header lines
@@ -101,7 +101,7 @@ begin
   snum = etdata(:,0)
 
   lon@units="degrees_east"
-  
+
 ; date
   year  = sprintf("%04.0f",etdata(:,10))
   month = sprintf("%02.0f",etdata(:,11))
@@ -109,7 +109,7 @@ begin
   hour  = sprintf("%02.0f",etdata(:,13))
   date  = year+" "+month+" "+day+" "+hour
   date_et = year+month+day
-  
+
   delete([/etdata,year,month,day,s_num/])
 
 ;========================================================
@@ -119,10 +119,10 @@ begin
 ; file with storm index for ET
   storm_dir = "../et-tracker/climatology_files/"
   storm_fil = "storms_"+type+".txt"
-  
-; list of storm numbers  
+
+; list of storm numbers
   storm_num = asciiread(storm_dir+storm_fil,-1,"integer")
-  
+
 ; total number of ET
   net = dimsizes(storm_num)
 
@@ -135,20 +135,20 @@ begin
 ;========================================================
 
   system("mkdir -p phase_traj")
-  
+
   latS = 0
   latN = 80
   lonW = 0
   lonE = 360
-    
+
   i = n_itc-1
 
     wks  = gsn_open_wks(file_type,"./phase_traj/trajs_"+type+"_"+sprinti("%0.4i",itc)+"_"+sprinti("%0.4i",i))
- 
+
 ;========================================================
 ; draw phase space
 ;========================================================
- 
+
     p_sub = p(sub(0:i))
     B_sub = B(sub(0:i))
     Vlt_sub = Vlt(sub(0:i))
@@ -156,6 +156,11 @@ begin
     date_sub = date(sub(0:i))
     date_et_sub = date_et(sub(i))
     hour_sub = hour(sub(i))
+
+  print(B_sub+" "+Vlt_sub+" "+Vut_sub)
+  B_sub(0) = B_sub@_FillValue
+  Vlt_sub(0) = Vlt_sub@_FillValue
+  Vut_sub(0) = Vut_sub@_FillValue
 
 	plot = new(2,graphic)
 
@@ -182,14 +187,14 @@ begin
 
 	res@xyMarkLineMode         ="Lines"
 	res@xyMarkerColor          = "Black"
-  
+
 	res@trYMinF                = -25
 	res@trYMaxF                = 100
 	res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
 	res@tiYAxisString          = "B [900-600 hPa Storm-Relative Thickness Symmetry]"
 
 	plot(0)=gsn_csm_xy(wks,Vlt_sub,B_sub,res)
-  
+
     res@gsnYRefLine = 0
 	res@trYMinF                = -400
 	res@trYMaxF                = 600
@@ -197,11 +202,11 @@ begin
 	res@tiYAxisString          = "-V~B~T~N~~S~U~N~ [600-300 hPa Thermal Wind]"
 
 	plot(1)=gsn_csm_xy(wks,Vlt_sub,Vut_sub,res)
-  
+
 	delete(res@gsnXRefLine)
 	delete(res@gsnYRefLine)
-    
-;======================================================== 
+
+;========================================================
 ; Overlay markers
 ;========================================================
 
@@ -214,14 +219,14 @@ begin
   dum2 = new(dimsizes(Vlt_sub(start_plot::plot_int)),graphic)
   dum3 = new(dimsizes(Vlt_sub(start_plot::plot_int)),graphic)
 
-; get info for color map 
+; get info for color map
   map_str = "BlAqGrYeOrReVi200"
   levels = ispan(p_min,p_max,p_int)
   black = (/0.0,0.0,0.0,1.0/)
 
-  j2 = start_plot  
+  j2 = start_plot
   do j = 0,dimsizes(Vlt_sub(start_plot::plot_int))-1
-  
+
 ; get color for marker fill
     rgba = get_color_rgba(map_str,levels,p_sub(j2))
     rgba(0:2) = 1-rgba(0:2)   ; flip colors
@@ -244,23 +249,23 @@ begin
 
     dum2(j) = gsn_add_polymarker(wks,plot(0),Vlt_sub(j2),B_sub(j2),res2)
     dum3(j) = gsn_add_polymarker(wks,plot(1),Vlt_sub(j2),Vut_sub(j2),res2)
-  
+
     j2 = j2 + plot_int
-  
+
   end do   ; end marker loop
-  
-  j2 = 0  
+
+  j2 = 0
   do j = 0,dimsizes(Vlt_sub)-1
-  
+
     if (date_sub(j2) .eq. date_start) then
       res2@gsMarkerSizeF = 0.025
       res2@gsMarkerThicknessF = 2
-      res2@gsMarkerIndex = 5      
+      res2@gsMarkerIndex = 5
       dum8 = gsn_add_polymarker(wks,plot(0),Vlt_sub(j2),B_sub(j2),res2)
       dum9 = gsn_add_polymarker(wks,plot(1),Vlt_sub(j2),Vut_sub(j2),res2)
 
     end if
-    
+
     if (date_sub(j2) .eq. date_end) then
       res2@gsMarkerSizeF = 0.025
       res2@gsMarkerThicknessF = 2
@@ -277,7 +282,7 @@ begin
     resP@gsnFrame = False
     resP@gsnPanelRight = 0.35
     gsn_panel(wks,plot,(/2,1/),resP)
-    
+
     delete([/res,resP/])
     delete([/j,j2,Vlt_sub,B_sub,Vut_sub,res2,dum0,dum1,dum2,dum3/])
 
@@ -286,7 +291,7 @@ begin
 ;========================================================
 
     ;ps_ind = ind(date_ps .eq. date_et_sub)
-   ; 
+   ;
    ; if (hour_sub .eq. "00") then
    ;   ps_sub = ps(ps_ind(0),:,:)
    ; else if (hour_sub .eq. "06") then
@@ -313,19 +318,19 @@ begin
 	res@mpCenterLonF          = (lonE+lonW)*0.5
 
 if (type .eq. "rea") then
-	res@tiMainString = "CFSR"	
+	res@tiMainString = "CFSR"
 else if (type .eq. "nx2") then
-	res@tiMainString = "CAM-55"	
+	res@tiMainString = "CAM-55"
 else if (type .eq. "nx4") then
-	res@tiMainString = "CAM-28"	
+	res@tiMainString = "CAM-28"
 else
-	res@tiMainString = ""	
+	res@tiMainString = ""
 end if
 end if
 end if
 
 	res@gsnCenterString = date_sub(0)+" hrs to "+date_sub(i)+" hrs"
-	
+
 	lineres = True
 	lineres@gsLineThicknessF = 5.0
 
@@ -334,8 +339,8 @@ end if
 
     map = gsn_csm_map_ce(wks,res)
 	dum = gsn_add_polyline(wks,map,lon_sub,lat_sub,lineres)
-	
-;======================================================== 
+
+;========================================================
 ; Overlay markers
 ;========================================================
 
@@ -343,18 +348,18 @@ end if
   dum4 = new(dimsizes(lon_sub(start_plot::plot_int)),graphic)
   dum5 = new(dimsizes(lon_sub(start_plot::plot_int)),graphic)
 
-; get info for color map 
+; get info for color map
   map_str = "BlAqGrYeOrReVi200"
   levels = ispan(p_min,p_max,p_int)
   black = (/0.0,0.0,0.0,1.0/)
-   
-  j2 = start_plot  
+
+  j2 = start_plot
   do j = 0,dimsizes(lon_sub(start_plot::plot_int))-1
 
 ; get color for marker fill
     rgba = get_color_rgba(map_str,levels,p_sub(j2))
     rgba(0:2) = 1-rgba(0:2)   ; flip colors
-    
+
     res2 = True
 	res2@gsMarkerIndex   = 16
 	res2@gsMarkerSizeF   = 0.012
@@ -372,14 +377,14 @@ end if
 	res2@gsMarkerColor   = black
 
     dum5(j) = gsn_add_polymarker(wks,map,lon_sub(j2),lat_sub(j2),res2)
-  
+
     j2 = j2 + plot_int
-  
+
   end do   ; end marker loop
 
-  j2 = 0  
+  j2 = 0
   do j = 0,dimsizes(lon_sub)-1
-    
+
 ;2000  09  28  18    2000  10  01  06
     if (date_sub(j2) .eq. date_start) then
       res2@gsMarkerSizeF = 0.03
@@ -387,16 +392,16 @@ end if
       res2@gsMarkerIndex = 5
       dum6 = gsn_add_polymarker(wks,map,lon_sub(j2),lat_sub(j2),res2)
     end if
-    
+
     if (date_sub(j2) .eq. date_end) then
       res2@gsMarkerSizeF = 0.03
       res2@gsMarkerThicknessF = 3
       res2@gsMarkerIndex = 6
       dum7 = gsn_add_polymarker(wks,map,lon_sub(j2),lat_sub(j2),res2)
     end if
-  
+
     j2 = j2 + 1
-  
+
   end do   ; end marker loop
 
   y_loc = 0.45
@@ -434,23 +439,23 @@ end if
   lbres@lbLabelAlignment     = "InteriorEdges"     ; where to label
   lbres@lbMonoFillPattern    = True                ; fill sold
   lbres@lbFillColors         = labelcolors      ; must be RGB triplets
-  
+
   lbres@lbTitleOn = True
   lbres@lbTitlePosition = "Bottom"
   lbres@lbTitleFontHeightF = 0.015
   lbres@lbTitleString = "Minimum Surface Pressure (hPa)"
-  
-  gsn_labelbar_ndc (wks,dimsizes(levels),labels,0.4,0.25,lbres)
+
+  gsn_labelbar_ndc (wks,dimsizes(levels),tostring(labels),0.4,0.25,lbres)
 
     resP = True
     resP@gsnFrame = False
     resP@gsnPanelLeft = 0.4
     gsn_panel(wks,map,(/1,1/),resP)
-    
+
     frame(wks)
-	
+
 	delete([/lon_sub,lat_sub,date_sub,dum,res,resP/])
-  
+
   exit
 
 end
