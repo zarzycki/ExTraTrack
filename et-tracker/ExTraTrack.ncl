@@ -56,8 +56,8 @@ vt_calc_method = namelist_extract( nldefaults, "vt_calc_method", "string")
 print(" ")
 
 ; CMZ setting to continue tracking PSL min past traj end
-KEEPGOING=False
-IGNORE_DISSIPATORS=False
+KEEPGOING=True
+IGNORE_DISSIPATORS=True
 
 ; select year(s) and months(s) of traj files to look at.
 ; if not defined on the command line, you can specify by hardcoding here, useful for debugging
@@ -69,6 +69,7 @@ if (.not. isdefined("year_min_str") .or. .not. isdefined("year_max_str"))
 else
   year_min=toint(year_min_str)
   year_max=toint(year_max_str)
+  print("Specified year_min_str / year_max_str,   using: "+year_min+"   "+year_max)
 end if
 if (.not. isdefined("month_min_str") .or. .not. isdefined("month_max_str"))
   month_min = 1
@@ -77,6 +78,7 @@ if (.not. isdefined("month_min_str") .or. .not. isdefined("month_max_str"))
 else
   month_min=toint(month_min_str)
   month_max=toint(month_max_str)
+  print("Specified month_min_str / month_max_str, using: "+month_min+"   "+month_max)
 end if
 
 ;========================================================
