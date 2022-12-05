@@ -17,6 +17,15 @@ begin
   deg2rad = pi/180.
 
     ; assign left and right Zs to entire Z array
+
+    ; DEBUG STATEMENTS
+    ;print(minPlat+" "+minPlon)
+    ;print((minPlat-qq_ddeg)+" "+(minPlat+qq_ddeg))
+    ;print((minPlon-qq_ddeg)+" "+(minPlon+qq_ddeg))
+    ;printVarSummary(Z_thick)
+    ;print(Z_thick&lat)
+    ;print(Z_thick&lon)
+
     Zl = Z_thick({(minPlat-qq_ddeg):(minPlat+qq_ddeg)},{(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
     Zr = Zl
     
@@ -74,7 +83,7 @@ begin
   
     delete([/jlat,jlon/])
 
-    if (1 .eq. 0) then
+    if (opt@debug) then
       print("... writing out B to tmp netCDF")
       dtime_map = (/4,2,2,2/)
       splitDate = str_split_by_length(tostring(opt@date),dtime_map)
@@ -196,15 +205,20 @@ do jlev = 0,dimsizes(logp)-1
 end do
 
 ; Compute thermal winds using Eqs. from Hart 2003 using linear regression
-Vlt = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
-Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
+if (opt@v_interp .eq. "simple") then
+  Vlt =  (dZ(indmid) - dZ(indbot)) / (logp(indmid) - logp(indbot))
+  Vut =  (dZ(indtop) - dZ(indmid)) / (logp(indtop) - logp(indmid))
+else
+  Vlt = regline(logp(indmid:indbot),dZ(indmid:indbot))  ; lower troposphere (Eq. 5)
+  Vut = regline(logp(indtop:indmid),dZ(indtop:indmid))  ; upper troposphere (Eq. 6)
+end if
 
 ;print(logp(indmid:indbot))
 ;print(dZ(indmid:indbot))
 
 returnvar=new(2,"float")
-returnvar(0)=Vlt
-returnvar(1)=Vut
+returnvar(0)=tofloat(Vlt)
+returnvar(1)=tofloat(Vut)
 return(returnvar)
 
 end

@@ -1,10 +1,8 @@
 ;========================================================
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_csm.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/contributed.ncl"
-load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 load "../functions/mask_tc.ncl"
 load "../functions/namelist_extract.ncl"
+load "../functions/getTrajectoriesGeneric.ncl"
+load "../functions/getStormIndices.ncl"
 ;========================================================
 ; reads in TC and ET trajectories
 ; generate ET climatology text files
@@ -68,119 +66,81 @@ etdetailsfile= "etdetails_"+type
 ;========================================================
 ; Read in TC-only trajectories from traj file
 ;========================================================
- 
- print("Loading TC trajectories")
- print(" ")
-  
+
+print("Loading TC trajectories")
+
 ; read in trajectory data from ascii file
 ; get number of storms by counting number of lines with 'start'
-  nstorms_tot = stringtoint(systemfunc("grep 'start' "+tfile+" | wc -l"))
+nstorms_tot = stringtoint(systemfunc("grep 'start' "+etfile+" | wc -l"))
+print("   Total number of storms = "+nstorms_tot)
 
-  tdata_tmp = asciiread(tfile,-1,"string")  ; read in trajectory data as strings
-  dims = dimsizes(tdata_tmp)    ; get dimensions
-  nrows = dims(0)               ; get number of rows
-  ncol = 8                      ; assign number of columns
-  delete([/tfile,dims/])
+ncols = -1                    ; assign number of columns
+maxLines = -1
+headerDelimStr = "start"
+tdata = getTrajectoriesGeneric(etfile,ncols,maxLines,headerDelimStr,False,False)
+tdata_dims = dimsizes(tdata)
+tdata_nstorms = tdata_dims(0)
+tdata_nvars = tdata_dims(1)
+tdata_ntimes = tdata_dims(2)
 
-; create new array that will hold all data except rows containing start information
-; add column to contain storm number
-  tdata = new((/nrows-nstorms_tot,ncol+1/),float)
+; All arrays beginning t_??? are nstorms x ntimes array containing relevant
+; TC trajectory information from TempestExtremes
+; Use user-defined trajinds to set lon, lat, wind, pres
+trajinds=(/0,1,2,4/)
+t_lon = tofloat(tdata(:,trajinds(0),:))
+t_lat = tofloat(tdata(:,trajinds(1),:))
+
+; Assume last 4 vars are YYYY MM DD HH
+t_yyyy=  toint(tdata(:,tdata_nvars-4,:))
+t_mm= toint(tdata(:,tdata_nvars-3,:))
+t_dd= toint(tdata(:,tdata_nvars-2,:))
+t_hh= toint(tdata(:,tdata_nvars-1,:))
+
+wind  = tofloat(tdata(:,3,:))
+psl   = tofloat(tdata(:,2,:))
+dist  = tofloat(tdata(:,4,:))
+ang   = tofloat(tdata(:,5,:))
+B     = tofloat(tdata(:,6,:))
+Vlt   = tofloat(tdata(:,7,:))
+Vut   = tofloat(tdata(:,8,:))
+
+; set fill values
+fillvalue = -999.00
+dist@_FillValue = fillvalue
+ang@_FillValue = fillvalue
+B@_FillValue = fillvalue
+Vlt@_FillValue = fillvalue
+Vut@_FillValue = fillvalue
   
-; create new array to hold all header information for each storm
-  s_year  = new(nstorms_tot,integer)
-  s_month = new(nstorms_tot,integer)
-  s_day   = new(nstorms_tot,integer)
-  s_num   = new(nstorms_tot,integer)
+if (max(psl) .gt. 1100.) then
+  print("WARNING: found pressures >1100. in track file, assuming Pa -> correcting to hPa")
+  psl = psl/100.
+end if
 
-; loop over lines of trajectory data, convert string to float
-  nstorm = 0   ; assign storm number
-  n2 = 0       ; counter data without header lines
-  do n1 = 0,nrows-1  ; loop over all data with header lines
-    first = str_get_cols(tdata_tmp(n1),0,0)   ; obtain first character of row
-    if (first .ne. "s") then              ; if not 's', this is not a header
-      tdata_tmp(n1) = str_sub_str(tdata_tmp(n1),"    "," ")   ; remove extra white space
-      tdata_tmp(n1) = str_sub_str(tdata_tmp(n1),"   "," ")    ; remove extra white space
-      tdata_tmp(n1) = str_sub_str(tdata_tmp(n1),"  "," ")     ; remove extra white space
-      tdata_tmp(n1) = str_strip(tdata_tmp(n1))                ; remove extra white space
-      tdata(n2,1::) = tofloat(str_split_csv(tdata_tmp(n1)," ",0))  ; convert to float
-      tdata(n2,0) = s_num(nstorm-1)   ; assign first dimension as storm number
-      n2 = n2 + 1
-    else  ; if 's' in the header
-      s_year(nstorm)  = stringtoint(str_get_field(tdata_tmp(n1),3," "))
-      s_month(nstorm) = stringtoint(str_get_field(tdata_tmp(n1),4," "))
-      s_day(nstorm)   = stringtoint(str_get_field(tdata_tmp(n1),5," "))
-      s_num(nstorm)  =  stringtoint(str_get_field(tdata_tmp(n1),7," "))
-      nstorm = nstorm + 1
-      continue
-    end if
-  end do
+; get start/end arrays that are length nstorms
+s_dur   = dim_sum_n(where(.not.ismissing(t_lon),1,0),1)
+s_year  = t_yyyy(:,0)
+s_month = t_mm(:,0)
+s_day   = t_dd(:,0)
+s_hour  = t_hh(:,0)
+s_id    = ispan(0,nstorms_tot-1,1)
+e_year  = new(nstorms_tot,integer)
+e_month = new(nstorms_tot,integer)
+do ii = 0,nstorms_tot-1
+  e_year(ii)  = t_yyyy(ii,s_dur(ii)-1)
+  e_month(ii) = t_mm(ii,s_dur(ii)-1)
+end do
 
-  year_min=min(s_year)
-  year_max=max(s_year)
+; get storm indices from etfile header rows
+s_num = getStormIndices(etfile)
 
-  delete([/tdata_tmp,n1,n2,nstorms_tot,nstorm,first,nrows,ncol/])
+year_min=min(s_year)
+year_max=max(s_year)
 
-; data now contains all trajectory information with the following columns
-; 0 = storm number
-; 1 = longitude
-; 2 = latitude
-; 3 = wind speed
-; 4 = sea level pressure
-; 5 = year
-; 6 = month
-; 7 = day
-; 8 = hour
+delete([/tdata,nstorms_tot,headerDelimStr,maxLines,ncols/])
 
-;========================================================
-; Read in ET storm trajectories
-;========================================================
 
-print("Loading ET trajectories")
-print(" ")
-
-  etdata_tmp = asciiread(etfile,-1,"string")  ; read in trajectory data as strings
-  dims = dimsizes(etdata_tmp)   ; get dimensions
-  nrows = dims(0)               ; get number of rows
-  ncol = 13                     ; assign number of columns
-  delete([/etfile,dims/])
-
-; create new array that will hold all data except rows containing start information
-; add column to contain storm number
-  etdata = new((/nrows,ncol+1/),float)
   
-; loop over lines of trajectory data, convert string to float
-  n2 = 0       ; counter data without header lines
-  do n1 = 0,nrows-1  ; loop over all data with header lines
-    first = str_get_cols(etdata_tmp(n1),0,0)   ; obtain first character of row
-    if (first .ne. "s") then              ; if not 's', this is not a header
-      etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"    "," ")  ; remove extra white space
-      etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"   "," ")   ; remove extra white space
-      etdata_tmp(n1) = str_sub_str(etdata_tmp(n1),"  "," ")    ; remove extra white space
-      etdata_tmp(n1) = str_strip(etdata_tmp(n1))               ; remove extra white space
-      etdata(n2,1::) = tofloat(str_split_csv(etdata_tmp(n1)," ",0))  ; convert to float
-      etdata(n2,0) = snum   ; assign first dimension as storm number
-      n2 = n2 + 1
-    else  ; if 's' in the header
-      snum  = stringtoint(str_get_cols(etdata_tmp(n1),41,44))
-      continue
-    end if
-  end do
-
-; define variables using etdata
-  etnum = etdata(:,0)
-  psl   = etdata(:,3)
-  wind  = etdata(:,4)
-;  dist   = etdata(:,5)
-;  ang  = etdata(:,6)
-  B     = etdata(:,7)
-  Vlt   = etdata(:,8)
-  year  = etdata(:,10)
-  mon   = etdata(:,11)
-  day   = etdata(:,12)
-  hr    = etdata(:,13)
-
-  delete([/etdata_tmp,n1,n2,first,nrows,ncol,etdata,snum/])
-
 ;========================================================
 ; Count storm types
 ;========================================================
@@ -241,7 +201,7 @@ if (ismissing(ind_storm(0))) then
   
 else
 
-  s_num_sub = s_num(ind_storm)
+s_num_sub = s_num(ind_storm)
 
 ; loop over each storm
 do loop_ind = 0,ntc-1
@@ -249,17 +209,8 @@ do loop_ind = 0,ntc-1
   jtc = ind(s_num .eq. itc)
   
   print(" ")
-  print("Storm # "+itc)
-
-; select trajectory information for individual storm
-  tsub_ind = ind(tdata(:,0) .eq. itc)
-  tsub = tdata(tsub_ind,:)
+  print("Storm # "+itc+" "+jtc)
   
-  dims = dimsizes(tsub)
-  nrows = dims(0)
-
-  delete([/tsub_ind,dims/])
-
 ;========================================================
 ; Test for correct basin
 ;========================================================
@@ -267,28 +218,27 @@ do loop_ind = 0,ntc-1
 ; select appropriate basin based on trajectory lat/lon
 ; analyze only north atlantic basin storms, skip all others
 
-  orilat=tsub(0,2)
-  orilon=tsub(0,1)
+  orilat=t_lat(jtc,0)
+  orilon=t_lon(jtc,0)
   if (orilon .gt. 360.0-maskspacing) then
     orilon=360.0-maskspacing
   end if
   
+  print("-- storm originating at lat: "+orilat+"  lon: "+orilon)
+    
   if (basin .gt. 0 .and. tcMask({orilat},{orilon}) .ne. basin) then
-    delete([/tsub,nrows,orilat,orilon/])
+    delete([/orilat,orilon/])
     print("  Wrong basin")
     continue
-  else if (abs(tsub(nrows-1,2)) .lt. 20) then
+  else if (abs(t_lat(jtc,s_dur(jtc)-1)) .lt. 20) then
     n_atl = n_atl + 1
     n_tc = n_tc + 1
     m_atl = m_atl + 1
     m_tc = m_tc + 1
     print("Storm Number: "+itc+"  TC  "+s_year(jtc)+" "+s_month(jtc)+" "+s_day(jtc))
-	  delete([/tsub,nrows/])
 	  continue
   end if
   end if
-
-  delete([/tsub/])
 
   n_atl = n_atl + 1
   m_atl = m_atl + 1
@@ -297,23 +247,17 @@ do loop_ind = 0,ntc-1
 ; Check if ET occurs
 ;========================================================
 
-; for storm in basin, get subset of data 
-  et_ind = ind(etnum .eq. itc)
-  if(all(ismissing(et_ind))) then
-    print("... potentially missing data: "+itc+"  TC  "+s_year(jtc)+" "+s_month(jtc)+" "+s_day(jtc))
-    n_miss = n_miss + 1
-    delete(et_ind)
-    continue
-  end if
-  B_tmp = B(et_ind)
-  Vlt_tmp = Vlt(et_ind)
-  psl_tmp = psl(et_ind)
+  dur = s_dur(jtc)
   
-  year_tmp = year(et_ind)
-  mon_tmp = mon(et_ind)
-  day_tmp = day(et_ind)
-  hr_tmp = hr(et_ind)
-  dur = dimsizes(et_ind)
+  B_tmp = B(jtc,0:dur-1)
+  Vlt_tmp = Vlt(jtc,0:dur-1)
+  psl_tmp = psl(jtc,0:dur-1)
+  
+  ; need to be converted back to floats because of diana's output strategy
+  year_tmp = tofloat(t_yyyy(jtc,0:dur-1))
+  mon_tmp = tofloat(t_mm(jtc,0:dur-1))
+  day_tmp = tofloat(t_dd(jtc,0:dur-1))
+  hr_tmp = tofloat(t_hh(jtc,0:dur-1))
 
 ; predefine logicals and et clock
   wc = False   ; warm core dissipation
@@ -330,7 +274,8 @@ do loop_ind = 0,ntc-1
   been_tc = False        ; start tc boolean false
   been_tc_count = 0      ; start count for TC check (should be zero)
 
-  do i = 0,dur-1
+  ; start at i = 1 because the first data point has missing values
+  do i = 1,dur-1
 
     ; First, check that storm has been TC for at least X timesteps
     if ( .not. been_tc .and. B_tmp(i) .lt. Blim .and. Vlt_tmp(i) .gt. Vlim) then
@@ -489,7 +434,7 @@ do loop_ind = 0,ntc-1
   end if
   end if
 
-  delete([/wc,cc,et,no,et_ind,B_tmp,Vlt_tmp,psl_tmp,year_tmp,mon_tmp,day_tmp,hr_tmp,dur/])
+  delete([/wc,cc,et,no,B_tmp,Vlt_tmp,psl_tmp,year_tmp,mon_tmp,day_tmp,hr_tmp,dur/])
 
 end do   ; storm loop
 

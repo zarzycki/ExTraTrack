@@ -30,12 +30,29 @@ begin
 end
 
 function getFileAndTimeFromLookup(timeArr,thisTime)
-local timeArr, thisTime, time1d, dsizes_time, indices, fileix, trackindex, needed_file
+local timeArr, thisTime, time1d, dsizes_time, indices, fileix, trackindex, needed_file, timediff,eps
 begin
+
+  ; small number for checking time sync issues
+  eps=1.0e-6
+
   ; look up time ix
   time1d      = ndtooned(timeArr)
   dsizes_time = dimsizes(timeArr)
-  indices  = ind_resolve(ind(time1d.eq.thisTime),dsizes_time)
+
+  ; use this to get *exact match* for thisTime to some time in the time1d array
+  ;timediff=0.0
+  ;indices  = ind_resolve(ind(time1d.eq.thisTime),dsizes_time)
+
+  ; here, find the index that is *nearest* to the thisTime
+  ; which allows for slightly out of sync dates (e.g., 1 hour)
+  timediff=abs(time1d-thisTime)
+  indices  = ind_resolve(minind(timediff),dsizes_time)
+  if (min(timediff) .gt. eps) then
+    print("WARNING: diff b/w best matched time in nc files & time from traj file = "+min(timediff))
+    print("---> this may mean your times are out of sync!")
+  end if
+
   if (any(ismissing(indices))) then
     trackindex=-1
     needed_file=""

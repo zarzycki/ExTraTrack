@@ -1,4 +1,4 @@
-# ExTraTrack v0.19
+# ExTraTrack
 
 ## aka the Extratropical Transition (tropical cyclone) Tracker
 
@@ -11,23 +11,22 @@ _Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical 
 
 **NOTE:** This is pre-release code that mainly consists of NCL / Bash scripting. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but not a high priority. Please e-mail me if you are interested in adapting this code for use with your products. If you are a user and find a bug or think you can contribute an improvement, open a ticket, pull request, etc.
 
-**WARNING:** This code has not been extensively verified beyond the particular projects noted below. If you find any bugs or inconsistencies, please contact zarzycki@ucar.edu.
+**WARNING:** This code has not been extensively verified beyond the particular projects noted below. If you find any bugs or inconsistencies, please contact czarzycki@psu.edu.
 
 It applies cyclone phase space as defined by:
 _Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal Asymmetry. Mon. Wea. Rev., 131, 585–616_
 
 To use this code, you *must* have gridded reanalysis or climate model data that contains variables described below.
 
-**A sample of gridded data + TC trajectories to start with can be downloaded from:** http://www.cgd.ucar.edu/staff/zarzycki/files/ERA-sample-ETC-tracker-data.gz
+**A sample of gridded data + TC trajectories to start with can be downloaded from:** [http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.tar.gz](http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.tar.gz)
 
 ## General procedure
 
 1. Generate TC trajectories using TC software
-2. Post-process TC trajectories into ExTraTrack required text format
-3. 'Massage' gridded netCDF files to standardized, CF-compliant, ExTraTrack-supported format
-4. Build "filelist" from netCDF files
-5. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT)
-6. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics
+2. 'Massage' gridded netCDF files to standardized, CF-compliant, ExTraTrack-supported format
+3. Build "filelist" from netCDF files
+4. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT)
+5. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics
 
 ## Detailed procedure
 
@@ -44,51 +43,39 @@ For more information about TempestExtremes, please see...
 
 Sample scripts for generating TC trajectories using TempestExtremes are found in `./tc-tracking/`
 
-### 2.) Post-process TC tracks
+`${TCTRAJ}` is usually placed in `./text_files/` and is used by `reanalysis_et_cyclone_traj.ncl` and `et_yearly_clim.ncl`
 
-Tracks *must* be post-processed to be in this text format
-
-```
-start 12 1980 5 1 0 0000
-260.156342 6.666654 10.399 1005.583 1980 5 1 0
-260.156342 7.368407 12.425 1007.042 1980 5 1 6
-259.453217 8.070160 12.061 1005.444 1980 5 1 12
-259.453217 8.771913 8.928 1008.520 1980 5 1 18
-258.750092 8.771913 9.844 1005.786 1980 5 2 0
-258.750092 9.473666 8.641 1007.734 1980 5 2 6
-258.046967 9.473666 8.332 1005.352 1980 5 2 12
-258.046967 9.473666 9.388 1007.724 1980 5 2 18
-258.046967 9.473666 10.366 1005.119 1980 5 3 0
-257.343842 10.175419 10.204 1006.493 1980 5 3 6
-257.343842 10.175419 11.325 1003.938 1980 5 3 12
-257.343842 10.175419 11.262 1007.239 1980 5 3 18
-start 32 1980 8 3 18 0001
-302.343842 12.982431 14.584 1006.678 1980 8 3 18
-300.937592 12.982431 11.796 1006.424 1980 8 4 0
-299.531342 12.982431 12.673 1005.519 1980 8 4 6
-297.421967 14.385937 15.288 1006.124 1980 8 4 12
-...
-```
+**NOTE:** ExTraTrack by default wraps over the top of the TempestExtremes track format. Files are ASCII containing multiple trajectories. They can be delimited by tabs or spaces. If you use a different tracking software, you must either reformat your data to match this format or edit the trajectory interface layer in ExTraTrack. A sample supported trajectory is in the sample data file linked above.
 
 each trajectory consists of a header line...
 ```
-start NUMOBS STYYYY STMM STDD STHH STORMID
+start NUMOBS STYYYY STMM STDD STHH
 ```
 
 each line of the trajectory (there should be NOBS of them) are...
 ```
-LON LAT BOT_WINDMAG PSL YYYY MM DD HH
+IX JY LON LAT WIND PRES VAR1 VAR2 ... VARN PSL YYYY MM DD HH
 ```
 
-where...
+**For ExTraTrack to parse this file correctly, the user must tell ExTraTrack what columns (0-based) correspond to the lon, lat, maximum surface wind, and minimum pressure values. This is specified by namelist parameter:
+
 ```
-PSL          ; minimum pressure value (Pa)
-BOT_WINDMAG  ; maximum wind speed at 10m or in lowest model level (m/s)
+trajinds=2,3,5,4,
 ```
 
-`${TCTRAJ}` is usually placed in `./text_files/` and is used by `reanalysis_et_cyclone_traj.ncl` and `et_yearly_clim.ncl`
+For example, the above tells ExTraTrack that the lon is in the third column, lat is in the fourth, wind is in the sixth, etc. (again, remember zero-indexed!).
 
-### 3.) Produce gridded, regular lat-lon netCDF
+Winds should be in m/s and pressure can be in either mb/hPa (preferred) or Pa (will be corrected inline).
+
+You can use previously "post-processed" ExTraTrack trajectory input files by using:
+
+```
+trajinds=0,1,2,3,
+```
+
+More information is below.
+
+### 2.) Produce gridded, regular lat-lon netCDF
 
 Variables must be in regular lat-lon format with dimensions ntime x nlev x nlat x nlon.
 
@@ -96,7 +83,7 @@ REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.
 1. PSL (sea level pressure in Pa)
 2. UBOT (lowest model level U wind, in m/s)
 3. VBOT (lowest model level V wind, in m/s)
-4. Z (geopotential height, in m) @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850, 
+4. Z (geopotential height, in m) @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850,
     875, 900, 925, 950, 975, 1000 mb.
 
 PSL, UBOT, and VBOT are 2-D variables at each time. (ntime x nlat x nlon)
@@ -108,13 +95,13 @@ Z is 3-D, with the vertical dimension named "lev." (ntime x nlev x nlat x nlon)
 
 The time dimension must be the record dimension and have a CF-compliant units attribute (i.e., "days since 2000-01-01"). There should also be a calendar attribute if using a calendar other than "noleap"
 
-Files may only be split along the time dimension. In other words, PSL, UBOT, VBOT, and Z at time t must be on the same file, but files can be split to have a single time per file, 4 times per file, 1460 times per file, etc. Any files with more than one month of data will occur additional memory overhead, so daily/weekly/monthly are preferred. 
+Files may only be split along the time dimension. In other words, PSL, UBOT, VBOT, and Z at time t must be on the same file, but files can be split to have a single time per file, 4 times per file, 1460 times per file, etc. Any files with more than one month of data will occur additional memory overhead, so daily/weekly/monthly are preferred.
 
-Example ERA-I files that are compliant are included in `./sample_data/`
+Example ERA-I files that are compliant are included in the example tar.gz file listed above.
 
 Users may modify the data ingestion within `reanalysis_et_cyclone_traj.ncl` but only the above format will be supported.
 
-### 4.) Generate a file list
+### 3.) Generate a file list
 
 A sorted (from oldest data date to newest), one-per-line list of absolute paths to the processed netCDF files must be generated. The simplest way to do so is to use UNIX's `find` utility. For example, if I have all of my files stored under `/home/$LOGNAME/mydata/` in an arbitrary directory structure, I can use...
 
@@ -122,7 +109,7 @@ A sorted (from oldest data date to newest), one-per-line list of absolute paths 
 
 This filelist will need to be referenced in the namelist described below.
 
-### 5.) Calculate CPS with NCL code
+### 4.) Calculate CPS with NCL code
 
 The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 
@@ -145,6 +132,7 @@ The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 | lonmin | lonmin=-180.0, | float | Minimum longitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
 | lonmax | lonmax=360.0, | float | Maximum latitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
 | hrintvl | hrintvl=6.0, | float | Time interval (hours) between data points |
+| trajinds | trajinds=0,1,2,3, | integer (4) | Indices in a TE track file corresponding to lon, lat, wind, pres |
 
 <a name="namelistfoot1">1</a>: If using global data, -180. -> 360. allows for all lon orderings. For more regional definitions, this will be specific to the gridded dataset coordinate conventions.
 
@@ -191,14 +179,14 @@ VLT          ; lower troposphere thermal wind (Hart 2003)
 VUT          ; upper troposphere thermal wind (Hart 2003)
 ```
 
-### 6.) Concatenate, postprocess, and analyze statistics
+### 5.) Concatenate, postprocess, and analyze statistics
 
 **NOTE:** All NCL files beginning with `et_` call the default namelist but have an optional command line arg of `nlfile` as with ExTraTrack that allows for the user to specify a different namelist file.
 
 In `./text_files/` the individual `tmp_XXX_NNN.txt` files need to be concatenated into a singlular traj file. This can be done quickly by invoking
 ```$> ncl et_concat_trajs.ncl```
 
-You can then run 
+You can then run
 ```$> ncl et_avg_text.ncl```
 ... to produce a "smoothed" ET trajectory file from `./text_files/${ETCTRAJ_ORIG}`.
 Settings are contained in the user options at the top of the script.
@@ -299,6 +287,6 @@ Note: TOTDUR/ETDUR in "timesteps" (number of datapoints, so 5 for 6-hourly pts =
 STORMID ETDUR PATH SLPST   SLPEN     ETSTARTYYYMMMDDHH   ETENDYYYMMMDDHH
 ```
 
-* PATH is path type defined in Zarzycki et al., 2017 
+* PATH is path type defined in Zarzycki et al., 2017
 * SLPST - SLP at start of transition
 * SLPEN - SLP at end of transition
