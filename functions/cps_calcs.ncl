@@ -28,6 +28,9 @@ begin
 
     Zl = Z_thick({(minPlat-qq_ddeg):(minPlat+qq_ddeg)},{(minPlon-qq_ddeg):(minPlon+qq_ddeg)})
     Zr = Zl
+    if (opt@debug) then
+      Zall = Zl
+    end if
     
     ; subselect lat/lon arrays to within 10deg of minPlon
     qq_lat=Zl&lat
@@ -99,6 +102,7 @@ begin
       nlon=ndims(1)
       Zltmp=new((/1,nlat,nlon/),typeof(Zl))
       Zrtmp=new((/1,nlat,nlon/),typeof(Zr))
+      Zalltmp=new((/1,nlat,nlon/),typeof(Zall))
 
       Zltmp!0="time"
       Zltmp!1="lat"
@@ -107,9 +111,11 @@ begin
       Zltmp&lat=Zl&lat
       Zltmp&lon=Zl&lon
       copy_VarMeta(Zltmp,Zrtmp)
+      copy_VarMeta(Zltmp,Zalltmp)
 
       Zltmp(0,:,:)=Zl
       Zrtmp(0,:,:)=Zr
+      Zalltmp(0,:,:)=Zall
 
       outName="SAMP_"+tostring(opt@date)+"_"+tostring(opt@id)+".nc"
       system("/bin/rm -f "+outName)
@@ -121,10 +127,11 @@ begin
       filedimdef(ncdf,"time",-1,True) 
       ncdf->Zl=Zltmp
       ncdf->Zr=Zrtmp
+      ncdf->Zall=Zall
 
       delete([/yyyy,mm,dd,hh,units,time,splitDate,dtime_map/])
       delete([/ndims,nlat,nlon/])
-      delete([/outName,Zltmp,Zrtmp/])
+      delete([/outName,Zltmp,Zrtmp,Zall/])
     end if
   
     ;========================================================
