@@ -19,6 +19,8 @@ local plot,wks,res,txid0,txid1,latmin,latmax, \
 ; D.R. Thatcher 15/07/2014
 begin
 
+  system("mkdir -p ./gifs")
+
 ; find mins and maxes for plotting
   latmin = min(lat)
   latmax = max(lat)
@@ -27,8 +29,8 @@ begin
 
 ; plot storm
   plot = new(2,graphic)
-  wks = gsn_open_wks("pdf","./gifs/track_plot_"+type+"_"+sprinti("%0.3i",itc)+ \
-                      "_"+sprinti("%0.3i",i))
+  wks = gsn_open_wks("pdf","./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itc)+ \
+                      "_"+sprinti("%0.4i",i))
   gsn_define_colormap(wks,"rainbow")
 
   res = True

@@ -52,6 +52,8 @@ maskspacing = namelist_extract( nldefaults, "maskspacing", "float")
 cpslevs = namelist_extract( nldefaults, "cpslevs", "float")
 extractBox = namelist_extract( nldefaults, "extractBox", "float")
 vt_calc_method = namelist_extract( nldefaults, "vt_calc_method", "string")
+Zvar = namelist_extract( nldefaults, "Zvar", "string")
+npastdays = namelist_extract( nldefaults, "npastdays", "float")
 
 print(" ")
 
@@ -92,9 +94,8 @@ r2d = (1./d2r)
 
 ; debugging
 plot_test=False
-plot_phase = True
-plot_track =False
-do_debug=False
+plot_phase=True
+plot_track=False
 B_print_nc=False
 
 ;========================================================
@@ -111,6 +112,8 @@ else
   exit
 end if
 end if
+print("Using vt_calc_method: "+vt_calc_method)
+print("So ExTraTrack has set interp_Z_to_CPS to "+interp_Z_to_CPS)
 
 ;========================================================
 ; Build lookup table from files listed in filelist
@@ -190,9 +193,9 @@ s_hour  = t_hh(:,0)
 s_id    = ispan(0,nstorms_tot-1,1)
 e_year  = new(nstorms_tot,integer)
 e_month = new(nstorms_tot,integer)
-do ii = 0,nstorms_tot-1
-  e_year(ii)  = t_yyyy(ii,s_dur(ii)-1)
-  e_month(ii) = t_mm(ii,s_dur(ii)-1)
+do nn = 0,nstorms_tot-1
+  e_year(nn)  = t_yyyy(nn,s_dur(nn)-1)
+  e_month(nn) = t_mm(nn,s_dur(nn)-1)
 end do
 
 delete([/tdata,nstorms_tot,headerDelimStr,maxLines,ncols/])
@@ -309,10 +312,9 @@ do jtc = 0,ntc-1
   s_date = sprinti("%0.4i",s_year)+sprinti("%0.2i",s_month)+sprinti("%0.2i",s_day)
 
   ; allow npastdays days past the end of TC phase
-  npastdays=14.
-  if ( str_match_bool_ic(s_time@units,"days") ) then
+  if ( str_match_bool_ic(ftimeunits,"days") ) then
     e_time = s_time + (s_dur(itc)/4.) + npastdays
-  else if ( str_match_bool_ic(s_time@units,"hours") ) then
+  else if ( str_match_bool_ic(ftimeunits,"hours") ) then
     e_time = s_time + (s_dur(itc)*6.) + (npastdays*24.)
   else
     print("confused about time units, check time units on input netcdf data, exiting...")
@@ -371,14 +373,22 @@ do jtc = 0,ntc-1
   ; Figure out level name
   ;========================================================
 
-  if isfilevarcoord( input1[0], "Z", "lev") then
+  ; I believe this checks in descending priority, but I can't imagine
+  ; a way for a Z to have multiple vertical dimensions?
+  if isfilevarcoord( input1[0], Zvar, "plev") then
+    levname="plev"
+  else if isfilevarcoord( input1[0], Zvar, "lev_p") then
+    levname="lev_p"
+  else if isfilevarcoord( input1[0], Zvar, "lev") then
     levname="lev"
-  else if isfilevarcoord( input1[0], "Z", "level") then
+  else if isfilevarcoord( input1[0], Zvar, "level") then
     levname="level"
   else
-    print("Unsupported level dimension on Z file")
+    print("Unsupported level dimension on "+Zvar+" file")
     print("please name it lev or level")
     exit
+  end if
+  end if
   end if
   end if
   print("levname: "+levname)
@@ -405,10 +415,10 @@ do jtc = 0,ntc-1
 
 	print("Loading geopotential heights")
   if (flipLev) then
-    Z3 = input1[:]->Z({s_time:e_time},::-1,{latmin:latmax},:)
+    Z3 = input1[:]->$Zvar$({s_time:e_time},::-1,{latmin:latmax},:)
 	  ;Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,::-1)
   else
-    Z3 = input1[:]->Z({s_time:e_time},:,{latmin:latmax},:)
+    Z3 = input1[:]->$Zvar$({s_time:e_time},:,{latmin:latmax},:)
 	  ;Z3 = input1[:]->Z({s_time:e_time},{latmin:latmax},:,:)
   end if
 
@@ -438,6 +448,7 @@ do jtc = 0,ntc-1
 	indtop = closest_val(cpslevs(0),pnew)      ; top index for VTU
 	indmid = closest_val(cpslevs(1),pnew)      ; bottom index for VTU, top index for B, VTL
 	indbot = closest_val(cpslevs(2),pnew)      ; bottom index for B, VTL
+  print("CPS indices: indtop: "+indtop+"  indmid: "+indmid+"  indbot: "+indbot)
 
 	; compute weights from latitudes
 	wgt = cos((Z3&lat)*d2r)
@@ -511,7 +522,16 @@ do jtc = 0,ntc-1
 
   ; assign fill value for missing if doesn't exist
   if(.not.isatt(PSL,"_FillValue")) then
+    print("assigning fillvalue to PSL")
     PSL@_FillValue := 9.969209968386869e+36
+  end if
+  if(.not.isatt(Z,"_FillValue")) then
+    print("assigning fillvalue to Z")
+    Z@_FillValue := 9.969209968386869e+36
+  end if
+  if(.not.isatt(UBOTMAG,"_FillValue")) then
+    print("assigning fillvalue to UBOTMAG")
+    UBOTMAG@_FillValue := 9.969209968386869e+36
   end if
   print("... done loading rest of data")
 
@@ -534,6 +554,7 @@ do jtc = 0,ntc-1
   nlon = dimsizes(lon)    ; longitude
 
   ; preallocate arrays for minimum pressure value and locations
+  ; note that ntime corresponds to the netCDF data loaded *not* the TE trajectory files
   minP    = new(ntime,float)   ; minimum pressure value (Pa)
   minPlat = new(ntime,float)   ; minimum pressure latitude
   minPlon = new(ntime,float)   ; minimum pressure longitude
@@ -557,6 +578,38 @@ do jtc = 0,ntc-1
   minPlat(0:nrows-1) = t_lat(itc,0:nrows-1)    ; latitude of minimum pressure
   minPlon(0:nrows-1) = t_lon(itc,0:nrows-1)    ; longitude of minimum pressure
   V(0:nrows-1) = t_wind(itc,0:nrows-1)         ; max wind speed
+  
+  ; check to see if we are missing any data
+  OPT:=0
+  OPT@calendar:=ftimecal
+  ; dummy zero arrays for min + sec in cd_inv_calendar of same size as yyyy, mm, dd, hh
+  t_zero = t_yyyy(itc,0:nrows-1)
+  t_zero = 0
+  ; use hours here because hrintvl is reported in hours.
+  ; the exact "units" don't matter since we just want some float string that allows us to fill in
+  ; gaps with equally spaced hours
+  te_time = cd_inv_calendar(t_yyyy(itc,0:nrows-1),t_mm(itc,0:nrows-1),t_dd(itc,0:nrows-1),t_hh(itc,0:nrows-1),t_zero,t_zero,"hours since 0001-01-01 00:00",OPT)
+  ; use max/min te_time to figure out how many data points *should* lie between these
+  nints=toint( (max(te_time)-min(te_time)) / hrintvl ) + 1
+  
+  if (nints .gt. nrows) then
+    print("INTERP: Found disagreement between TE trajectory and loaded NetCDF times")
+    print("INTERP: This is typically due to TE having an allowable maxgap")
+    print("INTERP: TE times: "+dimsizes(te_time)+"    interpolated times: "+nints)
+    print("INTERP: Will attempt to linearly interpolate between "+min(te_time)+" and "+max(te_time))
+    int_time = fspan(min(te_time),max(te_time),nints)
+    nirows = dimsizes(int_time)
+    minP(0:nirows-1)    = linint1(te_time,minP(0:nrows-1),False,int_time, 0)
+    minPlat(0:nirows-1) = linint1(te_time,minPlat(0:nrows-1),False,int_time, 0)
+    minPlon(0:nirows-1) = linint1(te_time,minPlon(0:nrows-1),False,int_time, 0)
+    V(0:nirows-1)       = linint1(te_time,V(0:nrows-1),False,int_time, 0)
+    ; recast nirows as nrows now that we've updated all arrays
+    nrows = nirows
+    delete([/int_time,nirows/])
+  end if
+
+  ; clean up
+  delete([/t_zero,te_time,nints,OPT/])
 
   ; if we have 0->360 gridded data, let's check to see if we have -180-180 traj lon
   ; if so, change traj data to match gridded data coords
@@ -801,6 +854,7 @@ do jtc = 0,ntc-1
 
       ; call function to create et plot
       if (plot_track) then
+        system("mkdir -p ./gifs")
         et_track_plot(type,itc,i,lat,lon,date(i), \
                       minP(i),minPlat(i),minPlon(i),PSL_tmp,PSL(i,:,:))
       end if
@@ -819,7 +873,7 @@ do jtc = 0,ntc-1
 
   ; if plotting track, combine pdfs into gif
   if (plot_track .or. plot_test) then
-    system("mkdir gifs")
+    system("mkdir -p ./gifs")
     system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif")
     system("convert -delay 50 -loop 0 -density 300 ./gifs/track_plot_"+type+"_"+ \
            sprinti("%0.4i",itcc)+"_*.pdf ./gifs/track_plot_"+type+"_"+ \
@@ -834,7 +888,7 @@ do jtc = 0,ntc-1
   if (plot_phase) then
     phaseplotdir="./phase_plots/"
     if ( toint(systemfunc("test -d "+phaseplotdir+"; echo $?")) .ne. 0 ) then
-      system("mkdir "+phaseplotdir+"/")
+      system("mkdir -p "+phaseplotdir+"/")
     end if
     system("rm -f "+phaseplotdir+"/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
     et_phase_plot(type,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
@@ -853,10 +907,10 @@ do jtc = 0,ntc-1
 
   ; make text and timing file folders if they do not exist.
   if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir "+textfiledir+"/")
+    system("mkdir -p "+textfiledir+"/")
   end if
   if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir "+timingfiledir+"/")
+    system("mkdir -p "+timingfiledir+"/")
   end if
 
   ; remove text file if it already exists
