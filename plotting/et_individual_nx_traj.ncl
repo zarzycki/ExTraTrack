@@ -210,7 +210,7 @@ begin
 ; Overlay markers
 ;========================================================
 
-  plot_int = 4
+  plot_int = 2  ; every 12 hours
   start_plot = 1
 
 ; dummy data for markers
