@@ -12,12 +12,12 @@ load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/shea_util.ncl"
 begin
 
   ;type = "rea"
-  dat = "avg"
+  ;dat = "avg"
   plot_legend = False
   file_type = "pdf"
-
-
-
+  plot_int = 2  ; every 12 hours
+  start_plot = 0 ; what is first point we want to plot?
+  
   itc = toint(itcstr)
   ;yyyy = "2002"
   ;mm1 = "09"
@@ -136,10 +136,30 @@ begin
 
   system("mkdir -p phase_traj")
 
+if (plot_domain .eq. "glob") then
+  latS = -80
+  latN = 80
+  lonW = 0
+  lonE = 360
+else if (plot_domain .eq. "nhemi") then
   latS = 0
   latN = 80
   lonW = 0
   lonE = 360
+else if (plot_domain .eq. "natl") then
+  latS = 10
+  latN = 70
+  lonW = 270
+  lonE = 360
+else
+  ; default to nhemi
+  latS = 0
+  latN = 80
+  lonW = 0
+  lonE = 360
+end if
+end if
+end if
 
   i = n_itc-1
 
@@ -210,8 +230,8 @@ begin
 ; Overlay markers
 ;========================================================
 
-  plot_int = 2  ; every 12 hours
-  start_plot = 1
+  
+  
 
 ; dummy data for markers
   dum0 = new(dimsizes(Vlt_sub(start_plot::plot_int)),graphic)
