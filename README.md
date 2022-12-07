@@ -7,7 +7,7 @@ Colin M. Zarzycki and Diana R. Thatcher.
 ExTraTrack allows for the calculation of cyclone phase space (CPS) parameters in gridded reanalysis/climate data given a set of cyclone trajectories. The code reads in trajectory data from standard tropical cyclone trackers (or observed trajectories for reanalysis) and calculates thermal symmetry and warm/cold core depth from the geopotential field by collocating the cyclone center (defined by PSL min) in space and time. The tracker can follow PSL minima following the termination of TC trajectories to fully encompass storm lifecycles.
 
 This code is used in the paper:
-_Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical cyclone extratropical transition detection in high-resolution reanalysis and climate model data, J. Adv. Model. Earth Syst., 9, 130–148, doi:10.1002/2016MS000775._
+_[Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical cyclone extratropical transition detection in high-resolution reanalysis and climate model data, J. Adv. Model. Earth Syst., 9, 130–148, doi:10.1002/2016MS000775.](http://dx.doi.org/10.1002/2016MS000775)_
 
 **NOTE:** This is pre-release code that mainly consists of NCL / Bash scripting. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but not a high priority. Please e-mail me if you are interested in adapting this code for use with your products. If you are a user and find a bug or think you can contribute an improvement, open a ticket, pull request, etc.
 
@@ -18,28 +18,31 @@ _Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal A
 
 To use this code, you *must* have gridded reanalysis or climate model data that contains variables described below.
 
-**A sample of gridded data + TC trajectories to start with can be downloaded from:** [http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.tar.gz](http://www.colinzarzycki.com/files/ERA-sample-ETC-tracker-data.tar.gz)
+**A sample of gridded CFSR data, TC trajectories, and README that reproduces Fig. 4 from Zarzycki et al., (2017) can be downloaded from:** [http://www.colinzarzycki.com/files/CFSR-sample-ExTraTrack.tar.gz](http://www.colinzarzycki.com/files/CFSR-sample-ExTraTrack.tar.gz)
+
+### Directory structure:
+
+- Actual ET tracker is in `./et-tracker`.
+- Functions associated with ET tracker are in `./functions`.
+- Plotting scripts (if available) are in `./plotting-scripts`.
 
 ## General procedure
 
-1. Generate TC trajectories using TC software
-2. 'Massage' gridded netCDF files to standardized, CF-compliant, ExTraTrack-supported format
-3. Build "filelist" from netCDF files
-4. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT)
-5. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics
+1. Generate or acquire TC trajectories.
+2. Convert NetCDF files to standardized, CF-compliant, ExTraTrack-supported format.
+3. Build "filelist" from NetCDF files.
+4. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT).
+5. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics.
 
 ## Detailed procedure
-
-*** Note, actual ET tracker is in ./et-tracker.
-*** Functions associated with ET tracker are in ./functions
-*** Plotting scripts (if available) are in ./plotting-scripts
 
 ### 1.) Generate TC tracks
 A TC tracker (such as [TempestExtremes](https://github.com/ClimateGlobalChange/tempestextremes) or TECA) needs to be used to generate/initialize TC tracks. This file will be shorthanded `${TCTRAJ}` in this README.
 
 For more information about TempestExtremes, please see...
-* Ullrich and Zarzycki, GMD, 2017
-* Zarzycki and Ullrich, GRL, 2017
+* [Ullrich and Zarzycki, GMD, 2017](http://dx.doi.org/10.5194/gmd-10-1069-2017)
+* [Zarzycki and Ullrich, GRL, 2017](http://dx.doi.org/10.1002/2016GL071606)
+* [Ullrich et al., GMD, 2021](https://doi.org/10.5194/gmd-14-5023-2021)
 
 Sample scripts for generating TC trajectories using TempestExtremes are found in `./tc-tracking/`
 
@@ -83,25 +86,24 @@ REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.
 1. PSL (sea level pressure in Pa)
 2. UBOT (lowest model level U wind, in m/s)
 3. VBOT (lowest model level V wind, in m/s)
-4. Z (geopotential height, in m) @ 300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 775, 800, 825, 850,
-    875, 900, 925, 950, 975, 1000 mb.
+4. Z (geopotential height, in m)
 
 PSL, UBOT, and VBOT are 2-D variables at each time. (ntime x nlat x nlon)
-Z is 3-D, with the vertical dimension named "lev." (ntime x nlev x nlat x nlon)
+Z is 3-D, with the vertical dimension named "lev." (ntime x nlev x nlat x nlon). If only a small number of pressure surfaces are available (e.g., <= 5), it is recommended to change `vt_calc_method` in `defaults/defaults.nl` from "regline" to "simple." Note: at least one pressure surface needs to be at of below 900 hPa and one needs to be at or above 300 hPa.
 
 "lat" must be increasing from south (-90) to north (90) (degrees\_north) and may be a subset of the global domain
 "lon" must be increasing from west to east (degrees\_east). The preferred convention is 0-360, but -180-180 should be correctly handled as well.
-"lev" must be in mb (hPa), from top-to-bottom, and lev must be an associated coordinate of the Z array.
+"lev" must be in mb (hPa), from top-to-bottom, and **lev must be an associated coordinate of the Z array.**
 
-The time dimension must be the record dimension and have a CF-compliant units attribute (i.e., "days since 2000-01-01"). There should also be a calendar attribute if using a calendar other than "noleap"
+The time dimension must be the record dimension and have a CF-compliant units attribute (i.e., "days since 2000-01-01"). There should also be a calendar attribute if using a calendar other than "noleap".
 
 Files may only be split along the time dimension. In other words, PSL, UBOT, VBOT, and Z at time t must be on the same file, but files can be split to have a single time per file, 4 times per file, 1460 times per file, etc. Any files with more than one month of data will occur additional memory overhead, so daily/weekly/monthly are preferred.
 
-Example ERA-I files that are compliant are included in the example tar.gz file listed above.
+Example CFSR files that are compliant are included in the example tar.gz file listed above.
 
-Users may modify the data ingestion within `reanalysis_et_cyclone_traj.ncl` but only the above format will be supported.
+Users may modify the data ingestion within `ExTraTrack.ncl` but only the above format will be supported.
 
-### 3.) Generate a file list
+### 3.) Generate a list of NetCDF files containing spatiotemporal information used in storm tracking and CPS calculations
 
 A sorted (from oldest data date to newest), one-per-line list of absolute paths to the processed netCDF files must be generated. The simplest way to do so is to use UNIX's `find` utility. For example, if I have all of my files stored under `/home/$LOGNAME/mydata/` in an arbitrary directory structure, I can use...
 
@@ -109,7 +111,7 @@ A sorted (from oldest data date to newest), one-per-line list of absolute paths 
 
 This filelist will need to be referenced in the namelist described below.
 
-### 4.) Calculate CPS with NCL code
+### 4.) Calculate CPS parameters with ExTraTrack
 
 The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 
@@ -132,7 +134,7 @@ The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 | lonmin | lonmin=-180.0, | float | Minimum longitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
 | lonmax | lonmax=360.0, | float | Maximum latitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
 | hrintvl | hrintvl=6.0, | float | Time interval (hours) between data points |
-| trajinds | trajinds=0,1,2,3, | integer (4) | Indices in a TE track file corresponding to lon, lat, wind, pres |
+| trajinds | trajinds=0,1,2,3, | integer (4) | Indices in a TE-formatted track file corresponding to lon, lat, wind, pres |
 
 <a name="namelistfoot1">1</a>: If using global data, -180. -> 360. allows for all lon orderings. For more regional definitions, this will be specific to the gridded dataset coordinate conventions.
 
