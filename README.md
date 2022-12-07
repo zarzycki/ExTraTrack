@@ -7,7 +7,7 @@ Colin M. Zarzycki and Diana R. Thatcher.
 ExTraTrack allows for the calculation of cyclone phase space (CPS) parameters in gridded reanalysis/climate data given a set of cyclone trajectories. The code reads in trajectory data from standard tropical cyclone trackers (or observed trajectories for reanalysis) and calculates thermal symmetry and warm/cold core depth from the geopotential field by collocating the cyclone center (defined by PSL min) in space and time. The tracker can follow PSL minima following the termination of TC trajectories to fully encompass storm lifecycles.
 
 This code is used in the paper:
-_[Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical cyclone extratropical transition detection in high-resolution reanalysis and climate model data, J. Adv. Model. Earth Syst., 9, 130–148, doi:10.1002/2016MS000775.](http://dx.doi.org/10.1002/2016MS000775)_
+_Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical cyclone extratropical transition detection in high-resolution reanalysis and climate model data, J. Adv. Model. Earth Syst., 9, 130–148, [doi:10.1002/2016MS000775.](http://dx.doi.org/10.1002/2016MS000775)_
 
 **NOTE:** This is pre-release code that mainly consists of NCL / Bash scripting. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but not a high priority. Please e-mail me if you are interested in adapting this code for use with your products. If you are a user and find a bug or think you can contribute an improvement, open a ticket, pull request, etc.
 
@@ -18,13 +18,13 @@ _Hart, R.E., 2003: A Cyclone Phase Space Derived from Thermal Wind and Thermal A
 
 To use this code, you *must* have gridded reanalysis or climate model data that contains variables described below.
 
-**A sample of gridded CFSR data, TC trajectories, and README that reproduces Fig. 4 from Zarzycki et al., (2017) can be downloaded from:** [http://www.colinzarzycki.com/files/CFSR-sample-ExTraTrack.tar.gz](http://www.colinzarzycki.com/files/CFSR-sample-ExTraTrack.tar.gz)
+**A sample of gridded CFSR data (approx. 550 MB), TC trajectories, and README that reproduces Fig. 4 from Zarzycki et al., (2017) can be downloaded from:** [http://www.colinzarzycki.com/files/CFSR-sample-ExTraTrack.tar.gz](http://www.colinzarzycki.com/files/CFSR-sample-ExTraTrack.tar.gz)
 
 ### Directory structure:
 
-- Actual ET tracker is in `./et-tracker`.
-- Functions associated with ET tracker are in `./functions`.
-- Plotting scripts (if available) are in `./plotting-scripts`.
+- ET tracker is in `./et-tracker`.
+- Associated functions are in `./functions`.
+- Plotting scripts (sample) are in `./plotting-scripts`.
 
 ## General procedure
 
@@ -119,7 +119,7 @@ The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 
 **NOTE:** The code requires reading a namelist, the default option is to read the file titled `namelist` from the same directory as ExTraTrack.
 
-`namelist` defines an external namelist with specific configuration options. A sample namelist is included in the example tarball. Keys must be defined as `VAR="TEXT",` when a string or `VAR=999.9` when numeric.
+`namelist` defines an external namelist with specific configuration options. A sample namelist is included in the example tarball. Keys must be defined as `VAR="TEXT",` when a string or `VAR=999.9,` when numeric.
 
 | Namelist Variable | Namelist sample | Type | Description |
 | --- | --- | --- | --- |
