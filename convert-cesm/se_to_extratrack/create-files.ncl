@@ -16,6 +16,13 @@ outdir = namelist_extract( nlfile, "outdir", "string")
 wgt_file = namelist_extract( nlfile, "wgt_file", "string")
 zleveloption = namelist_extract( nlfile, "zleveloption", "string")
 
+hoursperstep=6.         ; what is the time resolution of the 3-D data? usually 6
+hoursperoutput=144.     ; outs of an output file (must be <= and divide evenly into parent ntim!)
+
+; calculate number of steps per day
+stepsperday=24./hoursperstep
+stepsperoutput=hoursperoutput/hoursperstep
+
 ;f2name=fdir+"/"+"CHEY.VR28.NATL.EXT.CAM5.4CLM5.0.dtime900.cam.h2.1989-09-01-00000.nc"
 ;wgt_file="/global/homes/c/czarzyck/scratch/maps/hyperion/map_ne0np4natlanticext.ne30x4_to_0.25x0.25_GLOB.nc"
 ;outdir="/global/homes/c/czarzyck/scratch/et-hyperion/"
@@ -40,12 +47,12 @@ end if
 nlev=dimsizes(f2->lev)
 ntim=dimsizes(f2->time)
 
-nloops = ntim/4  ; 6 hourly
+nloops = ntim/toint(stepsperoutput)
 
 do zz = 0,nloops-1
 
-STTI=zz*4
-ENTI=((zz+1)*4)-1
+STTI=zz*toint(stepsperoutput)
+ENTI=((zz+1)*toint(stepsperoutput))-1
 
 time=f2->time(STTI:ENTI)
 utc_date=cd_calendar(time(0),0)
