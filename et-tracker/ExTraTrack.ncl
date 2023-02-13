@@ -617,17 +617,21 @@ do jtc = 0,ntc-1
     minPlon=where(minPlon.lt.0,360+minPlon,minPlon)
   end if
 
-  do i = 1,nrows-1
+  do i = 0,nrows-1
     ;========================================================
     ; compute distance traveled, speed of storm, and change in direction of motion
     ; for times already in TC trajectory
     ;========================================================
-    dist(i) = gc_latlon(minPlat(i),minPlon(i),minPlat(i-1),minPlon(i-1),2,4)  ; km
-    ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
-    if (i .eq. 1) then
-      ; if first datapoint, we can't have a change in angle, so set to zero
+
+    if (i .eq. 0) then
+      ; if first datapoint, we can't have a dist or change in angle, so set to zero
       d_ang(i) = 0.
+      dist(i) = 0.
+      ; estimate angle at t = 0 by using +1 timestep
+      ang(i) = bearing(minPlat(i),minPlon(i),minPlat(i+1),minPlon(i+1))
     else
+      dist(i) = gc_latlon(minPlat(i),minPlon(i),minPlat(i-1),minPlon(i-1),2,4)  ; km
+      ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
       d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
     end if
     ;========================================================
@@ -660,7 +664,7 @@ do jtc = 0,ntc-1
     ;========================================================
     ; Print various fields to screen
     ;========================================================
-    if (i .eq. 1) then
+    if (i .eq. 0) then
       print("    Press.   Lat      Lon     dist    V      ang" + \
             "     d_ang      B     Vlt     Vut     TYPE")
     end if
@@ -922,11 +926,12 @@ do jtc = 0,ntc-1
               "%s   %03i  %04i      %02i    %02i    %02i    %04i")
 
   ; reformat missing values to avoid terrible formatting in ascii file
+  ; 2/13/23 allow CPS params to be calculated at t = 0
   dist(0) = -999
   ang(0)  = -999
-  B(0)    = -999
-  Vlt(0)  = -999
-  Vut(0)  = -999
+  ;B(0)    = -999
+  ;Vlt(0)  = -999
+  ;Vut(0)  = -999
 
   st_date = cd_calendar(time(0:i-1),0)  ; get date at each time step
 
