@@ -50,7 +50,12 @@ begin
   indices  = ind_resolve(minind(timediff),dsizes_time)
   if (min(timediff) .gt. eps) then
     print("WARNING: diff b/w best matched time in nc files & time from traj file = "+min(timediff))
+    print("WARNING: thisTime is: "+cd_calendar(thisTime,3))
+    ;print(time1d+" "+timediff)
     print("---> this may mean your times are out of sync!")
+    return_error = toint(min(timediff))
+  else
+    return_error = 0
   end if
 
   if (any(ismissing(indices))) then
@@ -61,7 +66,7 @@ begin
     trackindex = indices(0,1)
     needed_file=timeArr&files(fileix)
   end if
-  return( [/ needed_file,trackindex /] )
+  return( [/ needed_file,trackindex,return_error /] )
 end
 
 function getCoords(filelist,latBounds)

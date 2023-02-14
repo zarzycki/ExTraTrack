@@ -354,8 +354,20 @@ do jtc = 0,ntc-1
     this_tmp2=getFileAndTimeFromLookup(timeArr,e_time)
     print("... files: "+this_tmp1[0]+" to "+this_tmp2[0])
     print("... file indices: "+ind(filel.eq.this_tmp1[0])+" to "+ind(filel.eq.this_tmp2[0]))
+    print("... return errors "+this_tmp1[2]+" and "+this_tmp2[2])
+    max_return_error = max((/this_tmp1[2],this_tmp2[2]/))
+
     files1=filel(ind(filel.eq.this_tmp1[0]):ind(filel.eq.this_tmp2[0]))
     delete([/this_tmp1,this_tmp2,e_year,e_mon_str/])
+
+    return_error_thresh = 1
+    if (max_return_error .gt. return_error_thresh) then
+      print("SKIPPING: max_return_error of "+max_return_error+" exceeds "+return_error_thresh+", skipping this storm!")
+      delete([/nrows/])
+      delete([/itc,itcc/])
+      continue
+    end if
+
   end if
 
   ;========================================================
@@ -553,6 +565,18 @@ do jtc = 0,ntc-1
   nlat = dimsizes(lat)    ; latitude
   nlon = dimsizes(lon)    ; longitude
 
+  if (nrows .gt. ntime) then
+    print("ERROR: nrows: "+nrows+"  is greater than ntimes: "+ntime)
+    print("ERROR: nrows is the number of TE lines for the storm and ntimes is number of available nc times")
+    print("ERROR: This typically means a netCDF file is corrupt or missing times between start/end")
+    print("SKIPPING: We are going to skip this storm")
+    ; these delete lines were largely stolen from below (if storm is successfully tracked)
+    delete([/PSL,Z,Z_thick,UBOTMAG,wgt,lat,lon,nlat,nlon,ntime,nrows/])
+    delete([/itc,itcc,time/])
+    delete([/date/])
+    continue
+  end if
+
   ; preallocate arrays for minimum pressure value and locations
   ; note that ntime corresponds to the netCDF data loaded *not* the TE trajectory files
   minP    = new(ntime,float)   ; minimum pressure value (Pa)
@@ -578,7 +602,7 @@ do jtc = 0,ntc-1
   minPlat(0:nrows-1) = t_lat(itc,0:nrows-1)    ; latitude of minimum pressure
   minPlon(0:nrows-1) = t_lon(itc,0:nrows-1)    ; longitude of minimum pressure
   V(0:nrows-1) = t_wind(itc,0:nrows-1)         ; max wind speed
-  
+
   ; check to see if we are missing any data
   OPT:=0
   OPT@calendar:=ftimecal
@@ -634,32 +658,42 @@ do jtc = 0,ntc-1
       ang(i) = bearing(minPlat(i-1),minPlon(i-1),minPlat(i),minPlon(i))
       d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
     end if
-    ;========================================================
-    ; Set options to pass into CPS calcs
-    ;========================================================
-    opt=0
-    opt@date:=cd_calendar(time(i),3)
-    opt@id:=itc
-    opt@v_interp=vt_calc_method  ; regline or simple
-    if (B_print_nc) then
-      opt@debug=True
+
+    if (minPlat(i) .ge. (latmax-10.) .or. minPlon(i) .ge. (lonmax-10.) .or. \
+           minPlat(i) .le. (latmin+10.) .or. minPlon(i) .le. (lonmin+10.)) then
+      ; do not calculate these because they are outside our domain
+      print("outside the domain, don't calculate B or Vlt")
+      B(i) = -991.9
+      Vlt(i) = -991.9
+      Vut(i) = -991.9
     else
-      opt@debug=False
+      ;========================================================
+      ; Set options to pass into CPS calcs
+      ;========================================================
+      opt=0
+      opt@date:=cd_calendar(time(i),3)
+      opt@id:=itc
+      opt@v_interp=vt_calc_method  ; regline or simple
+      if (B_print_nc) then
+        opt@debug=True
+      else
+        opt@debug=False
+      end if
+
+      ;========================================================
+      ; Find thickness of the right and left hand sides of storm
+      ;========================================================
+      B(i) = calc_B(Z_thick(i,:,:),extractBox,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
+
+      ;========================================================
+      ; Compute thermal wind values (Vlt and Vut)
+      ;========================================================
+      rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,extractBox,critRad,dist(i), \
+        ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
+      Vlt(i) = rtn_tmp(0)
+      Vut(i) = rtn_tmp(1)
+      delete(rtn_tmp)
     end if
-
-    ;========================================================
-    ; Find thickness of the right and left hand sides of storm
-    ;========================================================
-    B(i) = calc_B(Z_thick(i,:,:),extractBox,critRad,dist(i),ang(i),minPlat(i),minPlon(i),opt)
-
-    ;========================================================
-    ; Compute thermal wind values (Vlt and Vut)
-    ;========================================================
-    rtn_tmp = calc_VltVut(Z(i,:,:,:),lat,lon,extractBox,critRad,dist(i), \
-      ang(i),minPlat(i),minPlon(i),(/indtop,indmid,indbot/),logp,opt)
-    Vlt(i) = rtn_tmp(0)
-    Vut(i) = rtn_tmp(1)
-    delete(rtn_tmp)
 
     ;========================================================
     ; Print various fields to screen
