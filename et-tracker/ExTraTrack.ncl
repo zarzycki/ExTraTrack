@@ -54,6 +54,7 @@ extractBox = namelist_extract( nldefaults, "extractBox", "float")
 vt_calc_method = namelist_extract( nldefaults, "vt_calc_method", "string")
 Zvar = namelist_extract( nldefaults, "Zvar", "string")
 npastdays = namelist_extract( nldefaults, "npastdays", "float")
+return_error_thresh = namelist_extract( nldefaults, "return_error_thresh", "integer")
 
 print(" ")
 
@@ -354,13 +355,12 @@ do jtc = 0,ntc-1
     this_tmp2=getFileAndTimeFromLookup(timeArr,e_time)
     print("... files: "+this_tmp1[0]+" to "+this_tmp2[0])
     print("... file indices: "+ind(filel.eq.this_tmp1[0])+" to "+ind(filel.eq.this_tmp2[0]))
-    print("... return errors "+this_tmp1[2]+" and "+this_tmp2[2])
+    print("... return errors "+this_tmp1[2]+" (start) and "+this_tmp2[2]+" (end)")
     max_return_error = max((/this_tmp1[2],this_tmp2[2]/))
 
     files1=filel(ind(filel.eq.this_tmp1[0]):ind(filel.eq.this_tmp2[0]))
     delete([/this_tmp1,this_tmp2,e_year,e_mon_str/])
 
-    return_error_thresh = 1
     if (max_return_error .gt. return_error_thresh) then
       print("SKIPPING: max_return_error of "+max_return_error+" exceeds "+return_error_thresh+", skipping this storm!")
       delete([/nrows/])
