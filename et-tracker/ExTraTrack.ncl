@@ -363,7 +363,7 @@ do jtc = 0,ntc-1
 
     if (max_return_error .gt. return_error_thresh) then
       print("SKIPPING: max_return_error of "+max_return_error+" exceeds "+return_error_thresh+", skipping this storm!")
-      delete([/nrows/])
+      delete([/files1,nrows/])
       delete([/itc,itcc/])
       continue
     end if
@@ -615,7 +615,7 @@ do jtc = 0,ntc-1
   te_time = cd_inv_calendar(t_yyyy(itc,0:nrows-1),t_mm(itc,0:nrows-1),t_dd(itc,0:nrows-1),t_hh(itc,0:nrows-1),t_zero,t_zero,"hours since 0001-01-01 00:00",OPT)
   ; use max/min te_time to figure out how many data points *should* lie between these
   nints=toint( (max(te_time)-min(te_time)) / hrintvl ) + 1
-  
+
   if (nints .gt. nrows) then
     print("INTERP: Found disagreement between TE trajectory and loaded NetCDF times")
     print("INTERP: This is typically due to TE having an allowable maxgap")
