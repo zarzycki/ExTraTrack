@@ -58,12 +58,6 @@ etdetailsfile= "etdetails_"+type
  system("mkdir -p "+climodir)
 
 ;========================================================
-; Generate tc mask for masking basins
-;========================================================
-
-  tcMask = mask_tc(0,-999,-999,maskspacing,360)
-
-;========================================================
 ; Read in TC-only trajectories from traj file
 ;========================================================
 
@@ -111,7 +105,7 @@ ang@_FillValue = fillvalue
 B@_FillValue = fillvalue
 Vlt@_FillValue = fillvalue
 Vut@_FillValue = fillvalue
-  
+
 if (max(psl) .gt. 1100.) then
   print("WARNING: found pressures >1100. in track file, assuming Pa -> correcting to hPa")
   psl = psl/100.
@@ -139,13 +133,21 @@ year_max=max(s_year)
 
 delete([/tdata,nstorms_tot,headerDelimStr,maxLines,ncols/])
 
+;========================================================
+; Generate tc mask for masking basins
+;========================================================
 
-  
+  tcMask = mask_tc(0,-999,-999,maskspacing,360)
+  if (any(t_lon .lt. 0.0)) then
+    print("found a longitude < 0, flipping TC mask from 0->360 to -180->180")
+    tcMask = lonFlip(tcMask)
+  end if
+
 ;========================================================
 ; Count storm types
 ;========================================================
 
-; loop over each year  
+; loop over each year
 do iyear = year_min,year_max
 
   n_atl = 0  ; number of atlantic basin storms
@@ -180,11 +182,11 @@ do imon = 1,12
 ;========================================================
 ; Select storms within desired time period
 ;========================================================
-  
+
 ; find indices where data is between given year/month min and max
   ind_storm = ind(s_year .eq. iyear .and. s_month .eq. imon)
   ntc = dimsizes(ind_storm)
-  
+
 ;========================================================
 ; Read in data
 ;========================================================
@@ -195,10 +197,10 @@ if (ismissing(ind_storm(0))) then
   write_table(climodir+"/"+monfile+"_"+iyear+"_"+mon_str+".txt",\
         "w",[/iyear,imon,m_atl,m_tc,m_wc,m_cc,m_et,m_no/], \
         "%04i  %02i   %02i   %02i   %02i   %02i   %02i   %02i")
-        
+
   delete([/ind_storm/])
   continue
-  
+
 else
 
 s_num_sub = s_num(ind_storm)
@@ -207,10 +209,10 @@ s_num_sub = s_num(ind_storm)
 do loop_ind = 0,ntc-1
   itc = s_num_sub(loop_ind)
   jtc = ind(s_num .eq. itc)
-  
+
   print(" ")
   print("Storm # "+itc+" "+jtc)
-  
+
 ;========================================================
 ; Test for correct basin
 ;========================================================
@@ -223,9 +225,9 @@ do loop_ind = 0,ntc-1
   if (orilon .gt. 360.0-maskspacing) then
     orilon=360.0-maskspacing
   end if
-  
+
   print("-- storm originating at lat: "+orilat+"  lon: "+orilon)
-    
+
   if (basin .gt. 0 .and. tcMask({orilat},{orilon}) .ne. basin) then
     delete([/orilat,orilon/])
     print("  Wrong basin")
@@ -248,11 +250,11 @@ do loop_ind = 0,ntc-1
 ;========================================================
 
   dur = s_dur(jtc)
-  
+
   B_tmp = B(jtc,0:dur-1)
   Vlt_tmp = Vlt(jtc,0:dur-1)
   psl_tmp = psl(jtc,0:dur-1)
-  
+
   ; need to be converted back to floats because of diana's output strategy
   year_tmp = tofloat(t_yyyy(jtc,0:dur-1))
   mon_tmp = tofloat(t_mm(jtc,0:dur-1))
@@ -286,7 +288,7 @@ do loop_ind = 0,ntc-1
     end if
 
     if (been_tc) then
-      if (.not. et_b .and. B_tmp(i) .ge. Blim) then 
+      if (.not. et_b .and. B_tmp(i) .ge. Blim) then
         et_b = True
         ; check next 4 things
         jjend=min((/dur-1,(i+numconsec)-1/))
@@ -332,7 +334,7 @@ do loop_ind = 0,ntc-1
       ;  end if
       ;end if
 
-      ; check for multiple transitions 
+      ; check for multiple transitions
       if (et_b .and. et_v .and. \
         B_tmp(i) .lt. Blim .and. Vlt_tmp(i) .gt. Vlim) then
         print("Warning: could be multiple transitions!")
@@ -386,7 +388,7 @@ do loop_ind = 0,ntc-1
       write_table(climodir+"/"+lifefile+"_"+sprinti("%0.4i",itc)+".txt","w", \
       [/"storm",itc,dur,year_tmp(0),mon_tmp(0),day_tmp(0),hr_tmp(0)/], \
       "%s    %04i   %03i    %04.0f  %02.0f  %02.0f  %02.0f")
-        
+
        write_table(climodir+"/"+lifefile+"_"+sprinti("%0.4i",itc)+".txt","a", \
        [/itc,ete-ets,year_tmp(ets),mon_tmp(ets),day_tmp(ets),hr_tmp(ets), \
                    year_tmp(ete),mon_tmp(ete),day_tmp(ete),hr_tmp(ete)/], \
@@ -400,7 +402,7 @@ do loop_ind = 0,ntc-1
                    year_tmp(ete),mon_tmp(ete),day_tmp(ete),hr_tmp(ete)/], \
         " %04i   %03i  %01i  %7.2f %7.2f   %04.0f  %02.0f  %02.0f  %02.0f"+\
                        "    %04.0f  %02.0f  %02.0f  %02.0f")
-  
+
   delete(whichPath)
   end if
 
@@ -458,7 +460,7 @@ end do   ; month loop
 ; concatenate monthly output into a single file for each year
   system("cat "+climodir+"/"+monfile+"_"+iyear+\
      "*.txt > "+climodir+"/"+monthfile+"_"+iyear+".txt")
-      
+
 ; remove excess files
   system("rm -f "+climodir+"/"+monfile+"_"+iyear+"*.txt")
 
@@ -482,7 +484,7 @@ end do   ; month loop
   write_table(climodir+"/"+yearfile+"_"+iyear+".txt",\
         "w",[/iyear,n_atl,n_tc,n_wc,n_cc,n_et,n_no/], \
         "%04i   %02i   %02i   %02i   %02i   %02i   %02i")
-              
+
   delete([/n_et,n_wc,n_cc,n_tc,n_no/])
 
 ; write output to text file and remove text file if it already exists
@@ -509,18 +511,18 @@ end do   ; year loop
   system("cat "+climodir+"/"+etpathfile+"_"+"{"+year_min+".."+year_max+"}"+ \
     ".txt > "+climodir+"/"+etpathfile+"_"+year_min+"_"+year_max+".txt")
   system("rm -f "+climodir+"/"+etpathfile+"_"+"{"+year_min+".."+year_max+"}"+".txt")
-     
+
 ; concatenate storm files for all years and remove old files
   system("cat "+climodir+"/"+outfile+"_"+"{"+year_min+".."+year_max+"}"+ \
     ".txt > "+climodir+"/"+outfile+".txt")
   system("rm -f "+climodir+"/"+outfile+"_"+"{"+year_min+".."+year_max+"}"+".txt")
 
-; concatenate lifecycle files for all years and remove old files     
+; concatenate lifecycle files for all years and remove old files
   system("cat "+climodir+"/"+lifefile+"_????.txt > "+\
              climodir+"/"+lifefile+".txt")
   system("rm -f "+climodir+"/"+lifefile+"_????.txt")
 
-; concatenate et_detail files for all years and remove old files     
+; concatenate et_detail files for all years and remove old files
   system("cat "+climodir+"/"+etdetailsfile+"_????.txt > "+\
              climodir+"/"+etdetailsfile+".txt")
   system("rm -f "+climodir+"/"+etdetailsfile+"_????.txt")
