@@ -55,7 +55,8 @@ vt_calc_method = namelist_extract( nldefaults, "vt_calc_method", "string")
 Zvar = namelist_extract( nldefaults, "Zvar", "string")
 npastdays = namelist_extract( nldefaults, "npastdays", "float")
 return_error_thresh = namelist_extract( nldefaults, "return_error_thresh", "integer")
-
+deg_buffer = namelist_extract( nldefaults, "deg_buffer", "float")
+    
 print(" ")
 
 ; CMZ setting to continue tracking PSL min past traj end
@@ -659,8 +660,8 @@ do jtc = 0,ntc-1
       d_ang(i) = r2d*atan2(sin((ang(i-1)-ang(i))*d2r),cos((ang(i-1)-ang(i))*d2r))
     end if
 
-    if (minPlat(i) .ge. (latmax-10.) .or. minPlon(i) .ge. (lonmax-10.) .or. \
-           minPlat(i) .le. (latmin+10.) .or. minPlon(i) .le. (lonmin+10.)) then
+    if (minPlat(i) .ge. (latmax-deg_buffer) .or. minPlon(i) .ge. (lonmax-deg_buffer) .or. \
+           minPlat(i) .le. (latmin+deg_buffer) .or. minPlon(i) .le. (lonmin+deg_buffer)) then
       ; do not calculate these because they are outside our domain
       print("outside the domain, don't calculate B or Vlt")
       B(i) = -991.9
@@ -727,8 +728,8 @@ do jtc = 0,ntc-1
 
   ; loop over all times after TC tracker ends
   do i = nrows,ntime-1
-    if (minPlat(i-1) .ge. (latmax-10.) .or. minPlon(i-1) .ge. (lonmax-10.) .or. \
-           minPlat(i-1) .le. (latmin+10.) .or. minPlon(i-1) .le. (lonmin+10.)) then
+    if (minPlat(i-1) .ge. (latmax-deg_buffer) .or. minPlon(i-1) .ge. (lonmax-deg_buffer) .or. \
+           minPlat(i-1) .le. (latmin+deg_buffer) .or. minPlon(i-1) .le. (lonmin+deg_buffer)) then
       print("Done tracking storm since it exited our available domain...")
       break
     else  ; still tracking storm
