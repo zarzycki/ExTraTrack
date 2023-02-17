@@ -18,6 +18,7 @@ zleveloption = namelist_extract( nlfile, "zleveloption", "string")
 
 hoursperstep=6.         ; what is the time resolution of the 3-D data? usually 6
 hoursperoutput=144.     ; outs of an output file (must be <= and divide evenly into parent ntim!)
+add_tracker_fields=False
 
 ; calculate number of steps per day
 stepsperday=24./hoursperstep
@@ -168,9 +169,8 @@ ilev@units = "hPa"
 ;           kxtrp,varflg,TBOT,PHIS)
 Zi = vinth2p(Z3,hyam,hybm,ilev,PS,intyp,p0/100.,1,kxtrp)
 
-ZDIFF = Zi(:,{300.},:,:)
-ZDIFF = Zi(:,{300.},:,:) - Zi(:,{500.},:,:)
-
+;setfileoption("nc","Format","NetCDF4")
+;setfileoption("nc","CompressionLevel",1)
 system("mkdir -v -p "+outdir)
 system("/bin/rm -f "+outfile)   ; remove any pre-existing file
 ncdf = addfile(outfile,"c")  ; open output netCDF file
@@ -183,15 +183,22 @@ fileattdef( ncdf, fAtt )
 filedimdef(ncdf,"time",-1,True) 
 
 ncdf->Z    = Zi
-ncdf->Z300 = Zi(:,{300.},:,:)
-ncdf->Z500 = Zi(:,{500.},:,:)
-ncdf->DZ300500 = ZDIFF
 ncdf->VBOT = VBOT
 ncdf->UBOT = UBOT
-ncdf->V850 = V850
-ncdf->U850 = U850
 ncdf->PSL  = PSL
-ncdf->PS = PS
+if (add_tracker_fields) then
+  ZDIFF = Zi(:,{300.},:,:)
+  ZDIFF = Zi(:,{300.},:,:) - Zi(:,{500.},:,:)
+  ncdf->Z300 = Zi(:,{300.},:,:)
+  ncdf->Z500 = Zi(:,{500.},:,:)
+  ncdf->DZ300500 = ZDIFF
+  ncdf->V850 = V850
+  ncdf->U850 = U850
+  ncdf->PS = PS
+end if
+
+; compress?
+system("cd "+outdir+" ; ncks -4 -L 1 -O "+basename+" "+basename)
 
 end do
 
