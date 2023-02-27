@@ -56,7 +56,10 @@ Zvar = namelist_extract( nldefaults, "Zvar", "string")
 npastdays = namelist_extract( nldefaults, "npastdays", "float")
 return_error_thresh = namelist_extract( nldefaults, "return_error_thresh", "integer")
 deg_buffer = namelist_extract( nldefaults, "deg_buffer", "float")
-    
+generic_time_units = namelist_extract( nldefaults, "generic_time_units", "string")
+traj_match_time_offset = namelist_extract( nldefaults, "traj_match_time_offset", "float")
+traj_match_dist_offset = namelist_extract( nldefaults, "traj_match_dist_offset", "float")
+
 print(" ")
 
 ; CMZ setting to continue tracking PSL min past traj end
@@ -185,6 +188,18 @@ t_yyyy=  toint(tdata(:,tdata_nvars-4,:))
 t_mm= toint(tdata(:,tdata_nvars-3,:))
 t_dd= toint(tdata(:,tdata_nvars-2,:))
 t_hh= toint(tdata(:,tdata_nvars-1,:))
+
+; Create 1D arrays for matching storms
+OPT:=0
+OPT@calendar:=ftimecal
+; dummy zero arrays for min + sec in cd_inv_calendar of same size as yyyy, mm, dd, hh
+t_zero = t_yyyy
+t_zero = 0
+oned_te_times = ndtooned(cd_inv_calendar(t_yyyy,t_mm,t_dd,t_hh,t_zero,t_zero,generic_time_units,OPT))
+oned_te_lats = ndtooned(t_lat)
+oned_te_lons = ndtooned(t_lon)
+delete(t_zero)
+delete(OPT)
 
 ; get start/end arrays that are length nstorms
 s_dur   = dim_sum_n(where(.not.ismissing(t_lon),1,0),1)
@@ -613,7 +628,7 @@ do jtc = 0,ntc-1
   ; use hours here because hrintvl is reported in hours.
   ; the exact "units" don't matter since we just want some float string that allows us to fill in
   ; gaps with equally spaced hours
-  te_time = cd_inv_calendar(t_yyyy(itc,0:nrows-1),t_mm(itc,0:nrows-1),t_dd(itc,0:nrows-1),t_hh(itc,0:nrows-1),t_zero,t_zero,"hours since 0001-01-01 00:00",OPT)
+  te_time = cd_inv_calendar(t_yyyy(itc,0:nrows-1),t_mm(itc,0:nrows-1),t_dd(itc,0:nrows-1),t_hh(itc,0:nrows-1),t_zero,t_zero,generic_time_units,OPT)
   ; use max/min te_time to figure out how many data points *should* lie between these
   nints=toint( (max(te_time)-min(te_time)) / hrintvl ) + 1
 
@@ -704,7 +719,7 @@ do jtc = 0,ntc-1
             "     d_ang      B     Vlt     Vut     TYPE")
     end if
       print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i),V(i),ang(i),d_ang(i), \
-        B(i),Vlt(i),Vut(i),"TC")
+        B(i),Vlt(i),Vut(i),cd_calendar(time(i),3),"TC")
 
   end do   ; end loop of already TC tracked stuff
 
@@ -841,12 +856,47 @@ do jtc = 0,ntc-1
           d_ang(i) = d_ang_tmp(minPind)   ; change in storm direction
 
           delete(minPind)
+
+          ; check for ETC matches
+
+          time_matches = ind(abs(oned_te_times - cd_convert(time(i),generic_time_units)) .le. traj_match_time_offset)
+          if .not. all(ismissing(time_matches)) then
+            lat_matches=oned_te_lats(time_matches)
+            lon_matches=oned_te_lons(time_matches)
+            oned_te_dist = gc_latlon(minPlat(i),minPlon(i),lat_matches,lon_matches,2,2)
+            ;print(minPlon(i)+" "+minPlat(i))
+            ;print(""+oned_te_dist+" "+lon_matches+" "+lat_matches)
+            if (any(oned_te_dist .lt. traj_match_dist_offset)) then
+              print(""+oned_te_dist)
+              print("The ETC tracker at "+cd_calendar(time(i),3)+" has matched a TC track location")
+              print("Typically this means a low bridges two TE tracks.")
+              print("Break ETC tracking so as to not duplicate known tracks.")
+
+              ; clean up same variables as below
+              delete([/PSL_tmp,locmin,locmin_lat,locmin_lon,nmins/])
+              delete([/locmin_test,minP_tmp,dist_tmp,V_tmp,ang_tmp,d_ang_tmp,locmin_true/])
+              delete([/time_matches,oned_te_dist,lat_matches,lon_matches/])
+
+              ; stop tracking
+              break
+
+            end if
+
+            ; clean up
+            delete([/oned_te_dist,lat_matches,lon_matches/])
+          end if
+          ; clean up
+          delete([/time_matches/])
+
         else ; stop tracking if no local min satisfies all tests
           delete([/PSL_tmp,locmin,locmin_lat,locmin_lon,nmins/])
           delete([/locmin_test,minP_tmp,dist_tmp,V_tmp,ang_tmp,d_ang_tmp,locmin_true/])
           break
         end if
 
+        ; note, this is the *only* place we don't delete PSL_tmp since it is used
+        ; downstream assuming this is a valid ETC! Otherwise, rest of tmp vars
+        ; can be purged
         delete([/locmin,locmin_lat,locmin_lon,nmins/])
         delete([/locmin_test,minP_tmp,dist_tmp,V_tmp,ang_tmp,d_ang_tmp,locmin_true/])
 
@@ -885,7 +935,7 @@ do jtc = 0,ntc-1
       ; Print various fields to screen
       ;========================================================
       print_ET_toScreen(minP(i),minPlat(i),minPlon(i),dist(i), \
-        V(i),ang(i),d_ang(i),B(i),Vlt(i),Vut(i),"ETC")
+        V(i),ang(i),d_ang(i),B(i),Vlt(i),Vut(i),cd_calendar(time(i),3),"ETC")
 
       ;========================================================
       ; Plot storm

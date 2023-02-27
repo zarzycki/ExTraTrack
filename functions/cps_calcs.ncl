@@ -246,6 +246,7 @@ procedure print_ET_toScreen(
   B[1] : numeric,
   Vlt[1] : numeric,
   Vut[1] : numeric,
+  YYYYMMDDHH[1] : numeric,
   TYPE[1] : string
 )
 begin
@@ -256,9 +257,10 @@ begin
             "   " + sprintf("%4.1f",V) + \
             "   " + sprintf("%5.1f",ang) + \
             "   " + sprintf("%6.1f",d_ang) + \
-            "   " + sprintf("%5.1f",B) + \
+            "   " + sprintf("%6.1f",B) + \
             "   " + sprintf("%4.0f",Vlt) + \
             "   " + sprintf("%4.0f",Vut) + \
+            "   " + sprintf("%10.0f",YYYYMMDDHH) + \
             "   " + "   "+TYPE)
 end
 
