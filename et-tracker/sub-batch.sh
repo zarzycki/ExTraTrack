@@ -28,13 +28,15 @@ COMMANDFILE=commands.${TIMESTAMP}.txt
 
 STYR=1985
 ENYR=2014
-NAMELISTFILE="./user-nl/nl.hyp"
+NAMELISTFILE="./user-nl/nl.hyp.ref.dtime900.002"
 
 for DATA_YEAR in $(eval echo {$STYR..$ENYR})
 do
   NCLCOMMAND="ncl ExTraTrack.ncl 'nlfile=\"${NAMELISTFILE}\"' 'year_min_str=\"${DATA_YEAR}\"' 'year_max_str=\"${DATA_YEAR}\"'"
-  echo ${NCLCOMMAND} >> ${COMMANDFILE}
+  echo "${NCLCOMMAND} >> logs/log.${DATA_YEAR}" >> ${COMMANDFILE}
 done
+
+mkdir -p logs/
 
 if [[ $HOST = *"cori"* ]]; then
   parallel --jobs ${NUMCORES} -u < ${COMMANDFILE}
