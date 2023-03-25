@@ -9,7 +9,7 @@ load "../functions/getStormIndices.ncl"
 ;
 ; orig code: D. Thatcher 2014/08/11
 ; v0.1 release/cleanup: C. Zarzycki 2017/08/08
-; 
+;
 ;========================================================
 begin
 print("et_avg_text.ncl")
@@ -107,7 +107,7 @@ ang@_FillValue = fillvalue
 B@_FillValue = fillvalue
 Vlt@_FillValue = fillvalue
 Vut@_FillValue = fillvalue
-  
+
 if (max(psl) .gt. 1100.) then
   print("WARNING: found pressures >1100. in track file, assuming Pa -> correcting to hPa")
   psl = psl/100.
@@ -151,7 +151,7 @@ do jj = 0,nstorms_tot-1
 
   ; get duration of storm so arrays are only valid values and not missing
   dur = s_dur(jtc)
-  
+
   ; Extract this storm's info from the master storm arrays
   lon_sub  = t_lon(jtc,0:dur-1)
   lat_sub  = t_lat(jtc,0:dur-1)
@@ -168,12 +168,17 @@ do jj = 0,nstorms_tot-1
   mon_sub  = tofloat(t_mm(jtc,0:dur-1))
   day_sub  = tofloat(t_dd(jtc,0:dur-1))
   hour_sub = tofloat(t_hh(jtc,0:dur-1))
-  
+
   ; set fill values
   fillvalue = -999.00
   B_sub@_FillValue = fillvalue
   Vlt_sub@_FillValue = fillvalue
   Vut_sub@_FillValue = fillvalue
+
+  ; allow for missing data <= -990.0
+  B_sub = where(B_sub .le. -990.00,B_sub@_FillValue,B_sub)
+  Vlt_sub = where(Vlt_sub .le. -990.00,Vlt_sub@_FillValue,Vlt_sub)
+  Vut_sub = where(Vut_sub .le. -990.00,Vut_sub@_FillValue,Vut_sub)
 
   ;========================================================
   ; running avg
@@ -182,7 +187,7 @@ do jj = 0,nstorms_tot-1
   ; perform running avg over hourmean hours
   nave = toint(hourmean/datafreq) + 1
   opt = 1    ; reflective (symmetric) conditions
-  
+
   ; First, set all variables to un-averaged arrays
   B_avg = B_sub
   Vlt_avg = Vlt_sub
@@ -192,7 +197,7 @@ do jj = 0,nstorms_tot-1
   B_avg(1::) = runave_Wrap(B_sub(1::),nave,opt)
   Vlt_avg(1::) = runave_Wrap(Vlt_sub(1::),nave,opt)
   Vut_avg(1::) = runave_Wrap(Vut_sub(1::),nave,opt)
-    
+
   delete([/nave,opt,B_sub,Vlt_sub,Vut_sub/])
 
   ;========================================================
@@ -211,13 +216,13 @@ do jj = 0,nstorms_tot-1
 
   ; remove text file if it already exists
   system("rm -f "+textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt")
-  
+
   ; write header line for storm
   write_table(textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt","w", \
               [/"start",dur,year_sub(0),mon_sub(0),day_sub(0),hour_sub(0),itc/], \
               "%s   %03i  %4.0f      %02.0f    %02.0f    %02.0f    %04i")
 
-  ; write storm data to ascii file (append to header)   
+  ; write storm data to ascii file (append to header)
   write_table(textfiledir+"/"+outfile+sprinti("%0.4i",itc)+".txt","a", \
     [/lon_sub,lat_sub,pres_sub, \
     V_sub,dist_sub,ang_sub, \
@@ -227,16 +232,16 @@ do jj = 0,nstorms_tot-1
     "   %4.1f   %7.2f   %7.2f" + \
     "   %7.2f   %7.2f   %7.2f" + \
     "   %4.0f  %02.0f  %02.0f  %02.0f")
-    
+
   delete([/dur,itc,lon_sub,lat_sub,pres_sub,V_sub,dist_sub,ang_sub/])
   delete([/B_avg,Vlt_avg,Vut_avg,year_sub,mon_sub,day_sub,hour_sub/])
-  
+
   print("Done with storm.")
   print(" ")
-  
+
 end do  ; end storm loop
 
 system("cat "+textfiledir+"/"+outfile+"* > "+catfile)
 system("rm -f "+textfiledir+"/"+outfile+"*")
-	
+
 end
