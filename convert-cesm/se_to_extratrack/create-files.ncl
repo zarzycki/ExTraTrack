@@ -7,18 +7,22 @@ load "/glade/u/home/zarzycki/sw/ExTraTrack/functions/namelist_extract.ncl"
 ;========================================================
 begin
 
-; 
-; ncl create-files.ncl 'f2name="/glade/u/home/zarzycki/scratch/hyperion/CHEY.VR28.NATL.REF.CAM5.4CLM5.0.dtime900/atm/CHEY.VR28.NATL.REF.CAM5.4CLM5.0.dtime900.cam.h2.2003-08-19-00000.nc"' 'nlfile="nl.hyperion"'     "
+;
+;ncl create-files.ncl 'f2name="'/glade/u/home/zarzycki/scratch/hyperion/CHEY.VR28.NATL.REF.CAM5.4CLM5.0.tau3600/atm/CHEY.VR28.NATL.REF.CAM5.4CLM5.0.tau3600.cam.h2.1984-01-01-00000.nc'"' 'nlfile="'nl.hyperion'"'
 
+casename = namelist_extract( nlfile, "casename", "string")
 basehead = namelist_extract( nlfile, "basehead", "string")
 fpname = namelist_extract( nlfile, "fpname", "string")
 outdir = namelist_extract( nlfile, "outdir", "string")
 wgt_file = namelist_extract( nlfile, "wgt_file", "string")
 zleveloption = namelist_extract( nlfile, "zleveloption", "string")
+hoursperstep = namelist_extract( nlfile, "hoursperstep", "float")
+hoursperoutput = namelist_extract( nlfile, "hoursperoutput", "float")
+add_tracker_fields = namelist_extract( nlfile, "add_tracker_fields", "logical")
 
-hoursperstep=6.         ; what is the time resolution of the 3-D data? usually 6
-hoursperoutput=144.     ; outs of an output file (must be <= and divide evenly into parent ntim!)
-add_tracker_fields=False
+;hoursperstep=6.         ; what is the time resolution of the 3-D data? usually 6
+;hoursperoutput=144.     ; outs of an output file (must be <= and divide evenly into parent ntim!)
+;add_tracker_fields=False
 
 ; calculate number of steps per day
 stepsperday=24./hoursperstep
@@ -30,6 +34,9 @@ stepsperoutput=hoursperoutput/hoursperstep
 ;basename=systemfunc("basename "+f2name)
 ;basename = str_sub_str(basename,"h2","h7")
 ;fpname="/global/homes/c/czarzyck/scratch/unigridFiles/ne0np4natlanticext.ne30x4/topo/topo_ne0np4natlanticext.ne30x4_smooth.nc"
+
+basehead = casename + "." + basehead + "."
+outdir = outdir + "/" + casename
 
 f2=addfile(f2name,"r")
 if (fpname .eq. "" .or. fpname .eq. "0") then
@@ -171,6 +178,7 @@ Zi = vinth2p(Z3,hyam,hybm,ilev,PS,intyp,p0/100.,1,kxtrp)
 
 ;setfileoption("nc","Format","NetCDF4")
 ;setfileoption("nc","CompressionLevel",1)
+print("Attempting to write to: "+outfile)
 system("mkdir -v -p "+outdir)
 system("/bin/rm -f "+outfile)   ; remove any pre-existing file
 ncdf = addfile(outfile,"c")  ; open output netCDF file
@@ -180,7 +188,7 @@ fAtt@source_file   =  f2name
 fAtt@Conventions   = "None"
 fAtt@creation_date = systemfunc ("date")
 fileattdef( ncdf, fAtt )
-filedimdef(ncdf,"time",-1,True) 
+filedimdef(ncdf,"time",-1,True)
 
 ncdf->Z    = Zi
 ncdf->VBOT = VBOT
@@ -198,7 +206,11 @@ if (add_tracker_fields) then
 end if
 
 ; compress?
-system("cd "+outdir+" ; ncks -4 -L 1 -O "+basename+" "+basename)
+print("... compressing")
+systemcall="cd "+outdir+" ; ncks -4 -L 1 -O "+basename+" "+basename
+print(" "+systemcall)
+system(systemcall)
+print("... success!")
 
 end do
 
