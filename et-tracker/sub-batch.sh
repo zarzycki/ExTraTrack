@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #PBS -N ExTraTrack
-#PBS -A UPSU0032
+#PBS -A P93300042
 #PBS -l walltime=01:49:00
 #PBS -q premium
 #PBS -k oe
@@ -25,15 +25,16 @@ module load ncl
 NUMCORES=18
 TIMESTAMP=`date +%s%N`
 COMMANDFILE=commands.${TIMESTAMP}.txt
+YYYYMMDDHHSS=`date '+%Y%m%d%H%M%S'`
 
 STYR=1985
 ENYR=2014
-NAMELISTFILE="./user-nl/nl.hyp.ref.dtime900.002"
+NAMELISTFILE="./user-nl/nl.hyp.ref.tau3600"
 
 for DATA_YEAR in $(eval echo {$STYR..$ENYR})
 do
   NCLCOMMAND="ncl ExTraTrack.ncl 'nlfile=\"${NAMELISTFILE}\"' 'year_min_str=\"${DATA_YEAR}\"' 'year_max_str=\"${DATA_YEAR}\"'"
-  echo "${NCLCOMMAND} >> logs/log.${DATA_YEAR}" >> ${COMMANDFILE}
+  echo "${NCLCOMMAND} >> logs/log.${YYYYMMDDHHSS}.${DATA_YEAR}" >> ${COMMANDFILE}
 done
 
 mkdir -p logs/
