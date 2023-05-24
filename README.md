@@ -250,6 +250,7 @@ YYYY  PATH1 PATH2 PATH3
 * PATH1 - storms undergoing Type I ET
 * PATH2 - storms undergoing Type II ET
 * PATH3 - storms undergoing Type III ET
+
 --> (see Zarzycki et al., 2017 for type definitions)
 
 *********************************************
