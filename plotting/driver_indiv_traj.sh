@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 
 TYPE="dtime900.002"      # type from namelist (i.e., what dataset to plot
 DAT="avg"       # plot avg (smoothed) or orig -- Z2017 showed avg
