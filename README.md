@@ -266,12 +266,13 @@ storm    0005   028    1981  08  19  00
 ```
 
 ```
-storm   STORMID   TOTDUR  TCSTARTYYYYMMDDHH
-         STORMID ETDUR ETSTARTYYYMMMDDHH  ETENDYYYMMMDDHH
+storm  STORMID TOTDUR  TCSTARTYYYYMMDDHH
+       STORMID ETDUR   ETSTARTYYYMMMDDHH   ETENDYYYMMMDDHH
 ```
 
-* TOTDUR - total length of TC + ETC tracked
-* ETDUR - time between ET onset and ET completion
+* STORMID - Storm index corresponding to integer in header line (see above)
+* TOTDUR - total length of TC + ETC tracked (in timesteps)
+* ETDUR - time between ET onset and ET completion (in timesteps)
 * TCSTARTYYYYMMDDHH - initial time of TC tracking
 * ETSTARTYYYMMMDDHH - time of ET onset
 * ETENDYYYMMMDDHH - time of ET completion
@@ -282,13 +283,17 @@ Note: TOTDUR/ETDUR in "timesteps" (number of datapoints, so 5 for 6-hourly pts =
 `etdetails_era.txt`
 
 ```
- 0005   005    1  1002.36  999.80   1981  08  20  12    1981  08  21  18
+ 0005    005   1  1002.36  999.80   1981  08  20  12    1981  08  21  18
 ```
 
 ```
-STORMID ETDUR PATH SLPST   SLPEN     ETSTARTYYYMMMDDHH   ETENDYYYMMMDDHH
+STORMID ETDUR PATH SLPST   SLPEN    ETSTARTYYYMMMDDHH   ETENDYYYMMMDDHH
 ```
 
-* PATH is path type defined in Zarzycki et al., 2017
-* SLPST - SLP at start of transition
-* SLPEN - SLP at end of transition
+* STORMID - Storm index corresponding to integer in header line
+* ETDUR - time between ET onset and ET completion (in timesteps)
+* PATH - path type (1, 2, or 3) defined in Zarzycki et al., 2017
+* SLPST - Sea level pressure at start of transition
+* SLPEN - Sea level pressure at end of transition
+* ETSTARTYYYMMMDDHH - time of ET onset
+* ETENDYYYMMMDDHH - time of ET completion
