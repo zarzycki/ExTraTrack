@@ -279,6 +279,13 @@ do loop_ind = 0,ntc-1
   ; start at i = 1 because the first data point has missing values
   do i = 1,dur-1
 
+    ; if both B_tmp and Vlt_tmp are missing, we must skip the rest of the check and continue with the
+    ; next TC/ETC point. This could occur if a TC track point lies outside the domain available
+    ; for ExTraTrack (e.g., if a cyclone enters/leaves a regional nc domain).
+    if (ismissing(B_tmp(i)) .and. ismissing(Vlt_tmp(i)))
+      continue
+    end if
+
     ; First, check that storm has been TC for at least X timesteps
     if ( .not. been_tc .and. B_tmp(i) .lt. Blim .and. Vlt_tmp(i) .gt. Vlim) then
       been_tc_count = been_tc_count + 1
@@ -294,7 +301,9 @@ do loop_ind = 0,ntc-1
         jjend=min((/dur-1,(i+numconsec)-1/))
         do jj = i,jjend
           print(" "+B_tmp(jj))
-          if (B_tmp(jj) .lt. Blim)
+          ; if B_tmp is missing, we've likely exited the domain, do nothing
+          ; if B_tmp at some future time is <Blim, false start
+          if (.not. ismissing(B_tmp(jj)) .and. B_tmp(jj) .lt. Blim)
             et_b = False
             print("False start on B")
             break
@@ -312,7 +321,9 @@ do loop_ind = 0,ntc-1
         jjend=min((/dur-1,(i+numconsec)-1/))
         do jj = i,jjend
           print(" "+Vlt_tmp(jj))
-          if (Vlt_tmp(jj) .gt. Vlim)
+          ; if Vlt_tmp is missing, we've likely exited the domain, do nothing
+          ; if Vlt_tmp at some future time is >Vlt_tmp, false start
+          if (.not. ismissing(Vlt_tmp(jj)) .and. Vlt_tmp(jj) .gt. Vlim)
             et_v = False
             print("False start on VT")
             break
