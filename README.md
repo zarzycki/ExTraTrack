@@ -148,7 +148,7 @@ Simply, the code reads in the above TC trajectories and searches gridded data ma
 
 Following the termination of a defined warm-core TC trajectory, the code continues following features based on sea level pressure minima at subsequent time slices until the cyclone dissipates or is unable to be tracked (leaves domain, end of gridded timeseries, etc.)
 
-`reanalysis_et_cyclone_traj.ncl` will output new, storm-by-storm trajectory files in `./text_files/` with the prefix `tmp_TYPE_XXX`. Timing files are also output as `timing_TYPE_XXX` in `./timing_files/`
+`ExTraTrack.ncl ` will output new, storm-by-storm trajectory files in `./text_files/` with the prefix `tmp_TYPE_XXX`. Timing files are also output as `timing_TYPE_XXX` in `./timing_files/`
 
 Each storm trajectory will look like...
 ```
@@ -250,7 +250,7 @@ YYYY  PATH1 PATH2 PATH3
 * PATH1 - storms undergoing Type I ET
 * PATH2 - storms undergoing Type II ET
 * PATH3 - storms undergoing Type III ET
-* (see Zarzycki et al., 2017 for type definitions)
+--> (see Zarzycki et al., 2017 for type definitions)
 
 *********************************************
 `storms_era.txt`
