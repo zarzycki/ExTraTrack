@@ -53,5 +53,3 @@ tottime=$(($endtime-$starttime))
 rm ${COMMANDFILE}
 
 echo "${tottime}\n"
-
-
