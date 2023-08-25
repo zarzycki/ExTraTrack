@@ -105,6 +105,7 @@ plot_track_all=True
 plot_test=True
 plot_phase=True
 B_print_nc=False
+gifsdir="/glade/scratch/zarzycki/ET/"
 combine_plots="pdf" ; can be pdf or gif or tar or none
 
 ;========================================================
@@ -741,7 +742,7 @@ do jtc = 0,ntc-1
 
   if (plot_track) then
     do ii = 0, nrows-1
-      et_track_plot(type,itc,ii,lat,lon,date(ii),minP(ii),minPlat(ii),minPlon(ii), \
+      et_track_plot(type,gifsdir,itc,ii,lat,lon,date(ii),minP(ii),minPlat(ii),minPlon(ii), \
                     PSL(ii,:,:),PSL(ii,:,:))
     end do
     delete(ii)
@@ -802,7 +803,7 @@ do jtc = 0,ntc-1
         ; plot all local mins for debugging
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
-          et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
+          et_track_plot(type,gifsdir,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
                 PSL_tmp,PSL(i,:,:))
         end if
 
@@ -961,8 +962,7 @@ do jtc = 0,ntc-1
 
       ; call function to create et plot
       if (plot_track) then
-        system("mkdir -p ./gifs")
-        et_track_plot(type,itc,i,lat,lon,date(i), \
+        et_track_plot(type,gifsdir,itc,i,lat,lon,date(i), \
                       minP(i),minPlat(i),minPlon(i),PSL_tmp,PSL(i,:,:))
       end if
 
@@ -980,31 +980,28 @@ do jtc = 0,ntc-1
 
   ; if plotting track, combine pdfs into gif
   if (combine_plots .eq. "gif" .and. (plot_track .or. plot_test)) then
-    system("mkdir -p ./gifs")
-    concatted_file="./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif"
-    wildcard_files="./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
+    concatted_file=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif"
+    wildcard_files=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
     system("rm -f "+concatted_file)
-    convert_string="convert -delay 50 -loop 0 -density 300 ./gifs/track_plot_"+type+"_"+ \
-           sprinti("%0.4i",itcc)+"_*.pdf ./gifs/track_plot_"+type+"_"+ \
+    convert_string="convert -delay 50 -loop 0 -density 300 "+gifsdir+"/gifs/track_plot_"+type+"_"+ \
+           sprinti("%0.4i",itcc)+"_*.pdf "+gifsdir+"/gifs/track_plot_"+type+"_"+ \
            sprinti("%0.4i",itcc)+".gif"
     system(convert_string)
     print("Writing: "+concatted_file)
     system("rm -f "+wildcard_files)
   end if
   if (combine_plots .eq. "tar" .and. (plot_track .or. plot_test)) then
-    system("mkdir -p ./gifs")
     concatted_file="plot_"+type+"_"+sprinti("%0.4i",itcc)+".tar.gz"
     wildcard_files="track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
     system("rm -f "+concatted_file)
-    convert_string="cd ./gifs ; tar -zcf "+concatted_file+" "+wildcard_files+" ; cd .."
+    convert_string="thisDir=$PWD ; cd "+gifsdir+"/gifs ; tar -zcf "+concatted_file+" "+wildcard_files+" ; cd $thisDir"
     system(convert_string)
     print("Writing: "+concatted_file)
-    system("rm -f ./gifs/"+wildcard_files)
+    system("rm -f "+gifsdir+"/gifs/"+wildcard_files)
   end if
   if (combine_plots .eq. "pdf" .and. (plot_track .or. plot_test)) then
-    system("mkdir -p ./gifs")
-    concatted_file="./gifs/cat_"+type+"_"+sprinti("%0.4i",itcc)+".pdf"
-    wildcard_files="./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
+    concatted_file=gifsdir+"/gifs/cat_"+type+"_"+sprinti("%0.4i",itcc)+".pdf"
+    wildcard_files=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
     system("rm -f "+concatted_file)
     convert_string="gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite " + \
     "-sOutputFile="+concatted_file+" "+wildcard_files
@@ -1018,12 +1015,8 @@ do jtc = 0,ntc-1
   ;========================================================
 
   if (plot_phase) then
-    phaseplotdir="./phase_plots/"
-    if ( toint(systemfunc("test -d "+phaseplotdir+"; echo $?")) .ne. 0 ) then
-      system("mkdir -p "+phaseplotdir+"/")
-    end if
-    system("rm -f "+phaseplotdir+"/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
-    et_phase_plot(type,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
+    system("rm -f "+gifsdir+"/phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
+    et_phase_plot(type,gifsdir,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
   end if
 
   delete([/date/])

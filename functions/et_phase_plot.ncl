@@ -1,11 +1,12 @@
 undef("et_phase_plot")
 procedure et_phase_plot(
-  type[1] : string,   ; type of data
-  itc[1]  : integer,  ; storm number index
-  date    : numeric,  ; date for plot title
-  B       : numeric,  ; B parameter
-  Vlt     : numeric,  ; lower thermal wind
-  Vut     : numeric   ; upper thermal wind
+  type[1]    : string,   ; type of data
+  gifsdir[1] : string,   ; base directory to store images
+  itc[1]     : integer,  ; storm number index
+  date       : numeric,  ; date for plot title
+  B          : numeric,  ; B parameter
+  Vlt        : numeric,  ; lower thermal wind
+  Vut        : numeric   ; upper thermal wind
   )
 local plot,wks,res,resP,txres,nom,dum0,dum1
 ; plots the sea level pressure and cyclone center
@@ -17,7 +18,9 @@ begin
   plot2 = new(2,graphic)
   plot3 = new(2,graphic)
 
-  wks = gsn_open_wks("pdf","./phase_plots/phase_plot_"+type+"_"+sprinti("%0.3i",itc))
+  system("mkdir -p "+gifsdir+"/phase_plots/")
+
+  wks = gsn_open_wks("pdf",gifsdir+"/phase_plots/phase_plot_"+type+"_"+sprinti("%0.3i",itc))
 
   res           = True
   res@gsnDraw   = False
@@ -39,33 +42,33 @@ begin
 
   res@xyMarkLineMode         ="Lines"
   res@xyMarkerColor          = "Black"
-  
+
   res@trYMinF                = -25
   res@trYMaxF                = 100
   res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
   res@tiYAxisString          = "B [900-600 hPa Storm-Relative Thickness Symmetry]"
 
   plot(0)=gsn_csm_xy(wks,Vlt(::2),B(::2),res)
-  
+
   res@trYMinF                = -500
   res@trYMaxF                = 500
   res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
   res@tiYAxisString          = "-V~B~T~N~~S~U~N~ [600-300 hPa Thermal Wind]"
 
   plot(1)=gsn_csm_xy(wks,Vlt(::2),Vut(::2),res)
-  
+
   delete(res@gsnLeftString)
   delete(res@gsnRightString)
   delete(res@gsnXRefLine)
   delete(res@gsnYRefLine)
-  
+
 ; Overlay markers
 
   res@xyMarkLineMode         ="Markers"
   res@xyMarker               = 16
   res@xyMarkerSizeF          = 0.025
   res@xyMarkerColor          = "Grey50"
-  
+
   res@trYMinF                = -25
   res@trYMaxF                = 100
   res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
@@ -73,7 +76,7 @@ begin
 
   plot2(0)=gsn_csm_xy(wks,Vlt(::2),B(::2),res)
   overlay(plot(0),plot2(0))
-  
+
   res@trYMinF                = -500
   res@trYMaxF                = 500
   res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
@@ -81,14 +84,14 @@ begin
 
   plot2(1)=gsn_csm_xy(wks,Vlt(::2),Vut(::2),res)
   overlay(plot(1),plot2(1))
-  
+
 ; Overlay Marker Outline
 
 ;  res@xyMarkLineMode         ="Markers"
 ;  res@xyMarker               = 4
 ;  res@xyMarkerSizeF          = 0.025
 ;  res@xyMarkerColor          = "Black"
-  
+
 ;  res@trYMinF                = -25
 ;  res@trYMaxF                = 100
 ;  res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
@@ -96,7 +99,7 @@ begin
 
 ;  plot3(0)=gsn_csm_xy(wks,Vlt(::2),B(::2),res)
 ;  overlay(plot(0),plot3(0))
-  
+
 ;  res@trYMinF                = -500
 ;  res@trYMaxF                = 500
 ;  res@tiXAxisString          = "-V~B~T~N~~S~L~N~ [900-600 hPa Thermal Wind]"
@@ -121,7 +124,7 @@ begin
   resP = True
   resP@txString = "Storm Number: "+itc
   gsn_panel(wks,plot,(/2,1/),resP)
-  
+
   delete([/wks,plot,plot2,plot3,res,resP,txres,nom,dum0,dum1/])
-	
+
 end
