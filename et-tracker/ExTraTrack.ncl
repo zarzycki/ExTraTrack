@@ -8,6 +8,7 @@ load "../functions/cps_calcs.ncl"
 load "../functions/namelist_extract.ncl"
 load "../functions/fcns-extract-storm.ncl"
 load "../functions/getTrajectoriesGeneric.ncl"
+load "../functions/extrap_latlon.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
@@ -59,6 +60,8 @@ deg_buffer = namelist_extract( nldefaults, "deg_buffer", "float")
 generic_time_units = namelist_extract( nldefaults, "generic_time_units", "string")
 traj_match_time_offset = namelist_extract( nldefaults, "traj_match_time_offset", "float")
 traj_match_dist_offset = namelist_extract( nldefaults, "traj_match_dist_offset", "float")
+extrap_etc_loc = namelist_extract( nldefaults, "extrap_etc_loc", "logical")
+extrap_rad_shrink_fact = namelist_extract( nldefaults, "extrap_rad_shrink_fact", "float")
 
 print(" ")
 
@@ -98,10 +101,11 @@ d2r = pi/180.
 r2d = (1./d2r)
 
 ; debugging
-plot_test=False
+plot_track_all=True
+plot_test=True
 plot_phase=True
-plot_track=False
 B_print_nc=False
+combine_plots="pdf" ; can be pdf or gif or tar or none
 
 ;========================================================
 ; Do some sanity checking and internal setting
@@ -240,6 +244,14 @@ print(" ")
 
 ; loop over each storm
 do jtc = 0,ntc-1
+
+  ; decide if we are plotting this storm
+  if (plot_track_all) then
+    plot_track=True
+  else
+    plot_track=False
+  end if
+
   itc = jtc + ind_storm(0)
   itcc = s_id(itc)
   print("Storm Number: "+itcc)
@@ -757,8 +769,15 @@ do jtc = 0,ntc-1
       rad_tmp=get_sizeRad_from_lat(minPlat(i-1))
       lat2d=conform_dims((/nlat,nlon/),lat,0)
       lon2d=conform_dims((/nlat,nlon/),lon,1)
-      d = gc_latlon(minPlat(i-1),minPlon(i-1),lat2d,lon2d,2,4)  ; km
-      PSL_tmp=where(d.gt.rad_tmp,PSL_tmp@_FillValue,PSL_tmp)
+      if (extrap_etc_loc) then
+        xtrp := extrap_latlon( minPlat(i-1), minPlon(i-1), dist(i-1), ang(i-1))
+        d = gc_latlon(xtrp(0),xtrp(1),lat2d,lon2d,2,4)  ; km
+        rad_tmp_factor = extrap_rad_shrink_fact
+      else
+        d = gc_latlon(minPlat(i-1),minPlon(i-1),lat2d,lon2d,2,4)  ; km
+        rad_tmp_factor = 1.0
+      end if
+      PSL_tmp=where(d.gt.rad_tmp*rad_tmp_factor,PSL_tmp@_FillValue,PSL_tmp)
       UBOTMAG_tmp=where(d.gt.rad_tmp,UBOTMAG_tmp@_FillValue,UBOTMAG_tmp)
 
       ; find max wind speed
@@ -781,7 +800,6 @@ do jtc = 0,ntc-1
         nmins = dimsizes(locmin_lat)   ; number of local mins
 
         ; plot all local mins for debugging
-        plot_test = False
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
           et_track_plot(type,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
@@ -961,13 +979,38 @@ do jtc = 0,ntc-1
   print(" ")
 
   ; if plotting track, combine pdfs into gif
-  if (plot_track .or. plot_test) then
+  if (combine_plots .eq. "gif" .and. (plot_track .or. plot_test)) then
     system("mkdir -p ./gifs")
-    system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif")
-    system("convert -delay 50 -loop 0 -density 300 ./gifs/track_plot_"+type+"_"+ \
+    concatted_file="./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif"
+    wildcard_files="./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
+    system("rm -f "+concatted_file)
+    convert_string="convert -delay 50 -loop 0 -density 300 ./gifs/track_plot_"+type+"_"+ \
            sprinti("%0.4i",itcc)+"_*.pdf ./gifs/track_plot_"+type+"_"+ \
-           sprinti("%0.4i",itcc)+".gif")
-    system("rm -f ./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf")
+           sprinti("%0.4i",itcc)+".gif"
+    system(convert_string)
+    print("Writing: "+concatted_file)
+    system("rm -f "+wildcard_files)
+  end if
+  if (combine_plots .eq. "tar" .and. (plot_track .or. plot_test)) then
+    system("mkdir -p ./gifs")
+    concatted_file="plot_"+type+"_"+sprinti("%0.4i",itcc)+".tar.gz"
+    wildcard_files="track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
+    system("rm -f "+concatted_file)
+    convert_string="cd ./gifs ; tar -zcf "+concatted_file+" "+wildcard_files+" ; cd .."
+    system(convert_string)
+    print("Writing: "+concatted_file)
+    system("rm -f ./gifs/"+wildcard_files)
+  end if
+  if (combine_plots .eq. "pdf" .and. (plot_track .or. plot_test)) then
+    system("mkdir -p ./gifs")
+    concatted_file="./gifs/cat_"+type+"_"+sprinti("%0.4i",itcc)+".pdf"
+    wildcard_files="./gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
+    system("rm -f "+concatted_file)
+    convert_string="gs -q -dNOPAUSE -dBATCH -sDEVICE=pdfwrite " + \
+    "-sOutputFile="+concatted_file+" "+wildcard_files
+    system(convert_string)
+    print("Writing: "+concatted_file)
+    system("rm -f "+wildcard_files)
   end if
 
   ;========================================================
