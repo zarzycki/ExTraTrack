@@ -6,7 +6,8 @@ procedure et_phase_plot(
   date       : numeric,  ; date for plot title
   B          : numeric,  ; B parameter
   Vlt        : numeric,  ; lower thermal wind
-  Vut        : numeric   ; upper thermal wind
+  Vut        : numeric,  ; upper thermal wind
+  debug      : logical   ; if true, optional debugging info
   )
 local plot,wks,res,resP,txres,nom,dum0,dum1
 ; plots the sea level pressure and cyclone center
@@ -19,8 +20,11 @@ begin
   plot3 = new(2,graphic)
 
   system("mkdir -p "+gifsdir+"/phase_plots/")
-
-  wks = gsn_open_wks("pdf",gifsdir+"/phase_plots/phase_plot_"+type+"_"+sprinti("%0.3i",itc))
+  outfilename=gifsdir+"/phase_plots/phase_plot_"+type+"_"+sprinti("%0.3i",itc)
+  if (debug) then
+    print("Writing: "+outfilename)
+  end if
+  wks = gsn_open_wks("pdf",outfilename)
 
   res           = True
   res@gsnDraw   = False

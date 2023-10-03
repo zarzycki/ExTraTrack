@@ -9,6 +9,7 @@ load "../functions/namelist_extract.ncl"
 load "../functions/fcns-extract-storm.ncl"
 load "../functions/getTrajectoriesGeneric.ncl"
 load "../functions/extrap_latlon.ncl"
+load "../functions/debugging.ncl"
 
 ;========================================================
 ; reads in TC trajectories and data
@@ -101,10 +102,11 @@ d2r = pi/180.
 r2d = (1./d2r)
 
 ; debugging
-plot_track_all=True
-plot_test=True
-plot_phase=True
+plot_track_all=False
+plot_test=False
+plot_phase=False
 B_print_nc=False
+debug=True
 gifsdir="/glade/scratch/zarzycki/ET/"
 combine_plots="pdf" ; can be pdf or gif or tar or none
 
@@ -274,10 +276,10 @@ do jtc = 0,ntc-1
 
   if (orilat .gt. 0) then
     print("NH storm, restricting lats")
-    latmin=0.0
+    latmin=0.0-deg_buffer
   else
     print("SH storm, restricting lats")
-    latmax=0.0
+    latmax=0.0+deg_buffer
   end if
 
   ;========================================================
@@ -740,15 +742,24 @@ do jtc = 0,ntc-1
   ; call function to create et plot
   ;========================================================
 
+  ; we do not want to call et_track_plot if KEEPGOING since we'll just call it again
+  list_allocated(debug)
   if (plot_track) then
+    if (debug) then print("Calling et_track_plot inside at the end of TC loop") end if
     do ii = 0, nrows-1
       et_track_plot(type,gifsdir,itc,ii,lat,lon,date(ii),minP(ii),minPlat(ii),minPlon(ii), \
-                    PSL(ii,:,:),PSL(ii,:,:))
+                    PSL(ii,:,:),PSL(ii,:,:),debug)
+      if (debug) then print_memory_info() end if
     end do
     delete(ii)
   end if
+  list_allocated(debug)
+
+  if (debug) then print("Done with TC tracking") end if
 
   if (KEEPGOING) then
+
+  if (debug) then print("Entering extended TC/ETC loop") end if
 
   ;========================================================
   ; Find great circle distances and pressure values within radius
@@ -771,7 +782,7 @@ do jtc = 0,ntc-1
       lat2d=conform_dims((/nlat,nlon/),lat,0)
       lon2d=conform_dims((/nlat,nlon/),lon,1)
       if (extrap_etc_loc) then
-        xtrp := extrap_latlon( minPlat(i-1), minPlon(i-1), dist(i-1), ang(i-1))
+        xtrp := extrap_latlon( minPlat(i-1), minPlon(i-1), dist(i-1), ang(i-1), debug)
         d = gc_latlon(xtrp(0),xtrp(1),lat2d,lon2d,2,4)  ; km
         rad_tmp_factor = extrap_rad_shrink_fact
       else
@@ -804,7 +815,7 @@ do jtc = 0,ntc-1
         if (plot_test) then
           plot_track = False   ; don't overwrite with later plot of single point
           et_track_plot(type,gifsdir,itc,i,lat,lon,date(i),minP(i-1),locmin_lat,locmin_lon, \
-                PSL_tmp,PSL(i,:,:))
+                PSL_tmp,PSL(i,:,:),debug)
         end if
 
         ;========================================================
@@ -920,6 +931,7 @@ do jtc = 0,ntc-1
         delete([/locmin_test,minP_tmp,dist_tmp,V_tmp,ang_tmp,d_ang_tmp,locmin_true/])
 
       else  ; stop tracking if no local min exists
+        print("Done tracking storm since no local minimum exists...")
         delete([/PSL_tmp,locmin/])
         break
       end if
@@ -961,9 +973,12 @@ do jtc = 0,ntc-1
       ;========================================================
 
       ; call function to create et plot
+      list_allocated(debug)
       if (plot_track) then
+        if (debug) then print("Calling et_track_plot inside ET loop") end if
         et_track_plot(type,gifsdir,itc,i,lat,lon,date(i), \
-                      minP(i),minPlat(i),minPlon(i),PSL_tmp,PSL(i,:,:))
+                      minP(i),minPlat(i),minPlon(i),PSL_tmp,PSL(i,:,:),debug)
+        if (debug) then print_memory_info() end if
       end if
 
       delete(PSL_tmp)
@@ -980,6 +995,7 @@ do jtc = 0,ntc-1
 
   ; if plotting track, combine pdfs into gif
   if (combine_plots .eq. "gif" .and. (plot_track .or. plot_test)) then
+    print("combining into "+combine_plots)
     concatted_file=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+".gif"
     wildcard_files=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
     system("rm -f "+concatted_file)
@@ -991,6 +1007,7 @@ do jtc = 0,ntc-1
     system("rm -f "+wildcard_files)
   end if
   if (combine_plots .eq. "tar" .and. (plot_track .or. plot_test)) then
+    print("combining into "+combine_plots)
     concatted_file="plot_"+type+"_"+sprinti("%0.4i",itcc)+".tar.gz"
     wildcard_files="track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
     system("rm -f "+concatted_file)
@@ -1000,6 +1017,7 @@ do jtc = 0,ntc-1
     system("rm -f "+gifsdir+"/gifs/"+wildcard_files)
   end if
   if (combine_plots .eq. "pdf" .and. (plot_track .or. plot_test)) then
+    print("combining into "+combine_plots)
     concatted_file=gifsdir+"/gifs/cat_"+type+"_"+sprinti("%0.4i",itcc)+".pdf"
     wildcard_files=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itcc)+"_*.pdf"
     system("rm -f "+concatted_file)
@@ -1015,8 +1033,9 @@ do jtc = 0,ntc-1
   ;========================================================
 
   if (plot_phase) then
+    if (debug) then print("Calling et_phase_plot after tracking") end if
     system("rm -f "+gifsdir+"/phase_plots/phase_plot_"+type+"_"+itc+".pdf") ; remove existing pdf
-    et_phase_plot(type,gifsdir,itc,date(0:i-1),B,Vlt,Vut)     ; plot phase space diagram
+    et_phase_plot(type,gifsdir,itc,date(0:i-1),B,Vlt,Vut,debug)     ; plot phase space diagram
   end if
 
   delete([/date/])

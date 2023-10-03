@@ -1,9 +1,10 @@
 undef("extrap_latlon")
 function extrap_latlon(
-  lat1[1] : numeric,   ; lat1 in degrees
-  lon1[1] : numeric,   ; lon1 in degrees
-  d[1]    : numeric,   ; lat2 in degrees
-  brng[1] : numeric    ; lon2 in degrees
+  lat1[1] : numeric,
+  lon1[1] : numeric,
+  d[1]    : numeric,
+  brng[1] : numeric,
+  extrap_latlon[1] : logical
   )
 local pi, d2r, r2d, lat1r, lon1r, lat2r, lon2r, brngr, lat2, lon2, R, return_var
 
@@ -32,7 +33,9 @@ begin
   lon2 = lon2r * r2d
 
   ; Print the new latitude and longitude
-  print("Xtrap lat/lon:  " + lat2 +"/"+lon2)
+  if (extrap_latlon) then
+    print("Xtrap lat/lon:  " + lat2 +"/"+lon2)
+  end if
 
   return_var = new(2,typeof(lat2))
   return_var(0) = lat2

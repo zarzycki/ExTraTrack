@@ -11,7 +11,8 @@ procedure et_track_plot(
   minPlat    : numeric,  ; latitude of minimum pressure
   minPlon    : numeric,  ; longitude of minimum pressure
   data1      : numeric,  ; data for top panel
-  data2      : numeric   ; data for bottom panel
+  data2      : numeric,  ; data for bottom panel
+  debug      : logical   ; if true, optional debugging info
   )
 local plot,wks,res,txid0,txid1,latmin,latmax, \
       lon2,lonmin,lonmax,minPlon_ind,minPlon2,data1_flip,data2_flip
@@ -30,8 +31,12 @@ begin
 
 ; plot storm
   plot = new(2,graphic)
-  wks = gsn_open_wks("pdf",gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itc)+ \
-                      "_"+sprinti("%0.4i",i))
+  outfilename=gifsdir+"/gifs/track_plot_"+type+"_"+sprinti("%0.4i",itc)+ \
+                      "_"+sprinti("%0.4i",i)
+  if (debug) then
+    print("Writing: "+outfilename)
+  end if
+  wks = gsn_open_wks("pdf",outfilename)
   gsn_define_colormap(wks,"rainbow")
 
   res = True
