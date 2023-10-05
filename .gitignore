@@ -6,7 +6,7 @@ tc_traj*
 cyc.*
 et-tracker/tc-tracking/tc_traj
 !et-tracker/text_files/
-et-tracker/climatology_files/
+!et-tracker/climatology_files/
 nl.*
 !nl.sample*
 colin-plotting/
