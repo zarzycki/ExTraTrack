@@ -91,6 +91,9 @@ else
   month_max=toint(month_max_str)
   print("Specified month_min_str / month_max_str, using: "+month_min+"   "+month_max)
 end if
+if ( .not. isdefined("UQSTR") )
+  UQSTR="00000"
+end if
 
 ;========================================================
 ; Internal default calcs
@@ -106,7 +109,7 @@ plot_track_all=False
 plot_test=False
 plot_phase=False
 B_print_nc=False
-debug=True
+debug=False
 gifsdir="/glade/scratch/zarzycki/ET/"
 combine_plots="pdf" ; can be pdf or gif or tar or none
 
@@ -132,7 +135,15 @@ print("So ExTraTrack has set interp_Z_to_CPS to "+interp_Z_to_CPS)
 ;========================================================
 
 filel=asciiread(filelist,-1,"string")
-timeArr=buildTimeLookup(filel)
+lookup_file_name="lookup_"+UQSTR+".nc"
+
+if (isfilepresent(lookup_file_name)) then
+  print("LOOKUP: "+lookup_file_name+" exists, using that.")
+  timeArr=getTimeLookup(filel,lookup_file_name)
+else
+  print("LOOKUP: "+lookup_file_name+" is not present or not valid, building internally.")
+  timeArr=buildTimeLookup(filel)
+end if
 
 ;========================================================
 ; Get time units/calendar attributes from "file 0"
@@ -1050,12 +1061,12 @@ do jtc = 0,ntc-1
   timingfiledir="./timing_files/"
 
   ; make text and timing file folders if they do not exist.
-  if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir -p "+textfiledir+"/")
-  end if
-  if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
-    system("mkdir -p "+timingfiledir+"/")
-  end if
+  ;if ( toint(systemfunc("test -d "+textfiledir+"; echo $?")) .ne. 0 ) then
+  ;  system("mkdir -p "+textfiledir+"/")
+  ;end if
+  ;if ( toint(systemfunc("test -d "+timingfiledir+"; echo $?")) .ne. 0 ) then
+  ;  system("mkdir -p "+timingfiledir+"/")
+  ;end if
 
   ; remove text file if it already exists
   system("rm -f "+textfiledir+"/tmp_"+type+"_"+sprinti("%0.4i",itcc)+".txt")
@@ -1096,5 +1107,7 @@ do jtc = 0,ntc-1
   print(" ")
 
 end do ; end storm loop
+
+print("DONE")
 
 end

@@ -29,6 +29,24 @@ begin
   return(timeArr)
 end
 
+
+
+function getTimeLookup(filelist,stashedfile)
+local f
+begin
+
+  f = addfile(stashedfile,"r")
+
+  timeArr = f->timeArr
+  timeArr&files=filelist
+
+  delete(f)
+  return(timeArr)
+
+end
+
+
+
 function getFileAndTimeFromLookup(timeArr,thisTime)
 local timeArr, thisTime, time1d, dsizes_time, indices, fileix, trackindex, needed_file, timediff,eps
 begin
@@ -110,8 +128,8 @@ local nlat,nlon,lat2D,lon2D,varArray,nstorms,ntimes,lat,lon
 begin
   nlat=dimsizes(lat)
   nlon=dimsizes(lon)
-  lat2D=conform_dims((/nlat,nlon/),lat,0) 
-  lon2D=conform_dims((/nlat,nlon/),lon,1) 
+  lat2D=conform_dims((/nlat,nlon/),lat,0)
+  lon2D=conform_dims((/nlat,nlon/),lon,1)
   varArray=new((/nstorms,ntimes,nlat,nlon/),"float")
 
   varArray!0    = "storm"
@@ -155,7 +173,7 @@ begin
         end if
         durtime(j) = durtime(j)+6
         entime(j)=toint(traj_yyyy(j,i))*1000000+toint(traj_mm(j,i))*10000+toint(traj_dd(j,i))*100+toint(traj_hh(j,i))
-    
+
         retlist=getFileAndTimeFromLookup(timeArr,thisTime)
         needed_file=retlist[0]
         trackindex=retlist[1]
@@ -222,7 +240,7 @@ begin
         end if
         durtime(0) = durtime(0)+6
         entime(0)=toint(traj_yyyy(j,i))*1000000+toint(traj_mm(j,i))*10000+toint(traj_dd(j,i))*100+toint(traj_hh(j,i))
-    
+
         retlist=getFileAndTimeFromLookup(timeArr,thisTime)
         needed_file=retlist[0]
         trackindex=retlist[1]
