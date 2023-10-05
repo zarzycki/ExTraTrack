@@ -24,7 +24,6 @@ module load peak_memusage
 
 NUMCORES=10
 TIMESTAMP=`date +%s%N`
-TIMESTAMP="1696429188031086934"
 COMMANDFILE=commands.${TIMESTAMP}.txt
 YYYYMMDDHHSS=`date '+%Y%m%d%H%M'`
 
@@ -41,7 +40,7 @@ done
 mkdir -p logs/
 
 # build lookup table
-#ncl et_build_lookup.ncl 'nlfile="'${NAMELISTFILE}'"' 'UQSTR="'${TIMESTAMP}'"'
+ncl et_build_lookup.ncl 'nlfile="'${NAMELISTFILE}'"' 'UQSTR="'${TIMESTAMP}'"'
 
 if [[ $HOST = *"cori"* ]]; then
   parallel --jobs ${NUMCORES} -u < ${COMMANDFILE}
