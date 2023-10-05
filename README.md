@@ -9,7 +9,7 @@ ExTraTrack allows for the calculation of cyclone phase space (CPS) parameters in
 This code is used in the paper:
 _Zarzycki, C. M., D. R. Thatcher, and C. Jablonowski (2017), Objective tropical cyclone extratropical transition detection in high-resolution reanalysis and climate model data, J. Adv. Model. Earth Syst., 9, 130–148, [doi:10.1002/2016MS000775.](http://dx.doi.org/10.1002/2016MS000775)_
 
-**NOTE:** This is pre-release code that mainly consists of NCL / Bash scripting. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but not a high priority. Please e-mail me if you are interested in adapting this code for use with your products. If you are a user and find a bug or think you can contribute an improvement, open a ticket, pull request, etc.
+**NOTE:** This software mainly consists of NCL / Bash scripting. Porting to a more flexible language (Python?) and generalizing the code is on my to-do list, but not a high priority. Please e-mail me if you are interested in adapting this code for use with your products. If you are a user and find a bug or think you can contribute an improvement, open a ticket, pull request, etc.
 
 **WARNING:** This code has not been extensively verified beyond the particular projects noted below. If you find any bugs or inconsistencies, please contact czarzycki@psu.edu.
 
@@ -31,10 +31,34 @@ To use this code, you *must* have gridded reanalysis or climate model data that 
 1. Generate or acquire TC trajectories.
 2. Convert NetCDF files to standardized, CF-compliant, ExTraTrack-supported format.
 3. Build "filelist" from NetCDF files.
-4. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT).
-5. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics.
+4. (Optional) build static time/file lookup table.
+5. Run `ExTraTrack.ncl` to extract extended tracks with CPS variables (B, VUT, VLT).
+6. Concatenate ET trajectories output, "smooth" CPS parameters, process/plot ET climatological statistics.
 
 ## Detailed procedure
+
+### 0.) The ExTraTrack namelist
+
+**NOTE:** The code requires reading a namelist, the default option is to read the file titled `namelist` from the same directory as ExTraTrack.
+
+`namelist` defines an external namelist with specific configuration options. A sample namelist is included in the example tarball. Keys must be defined as `VAR="TEXT",` when a string or `VAR=999.9,` when numeric.
+
+| Namelist Variable | Namelist sample | Type | Description |
+| --- | --- | --- | --- |
+| type | type="era", | string | Shortcode describing particular dataset |
+| tfile | tfile="./tc-tracking/tc\_traj", | string | Path to `${TCTRAJ}`. Can be relative, but safer as full path. |
+| filelist | filelist="./filelist.txt", | string | Path to gridded netCDF files, one per line and chronologically sorted (see step 4)|
+| etfileori | etfileori="./text\_files/traj\_et\_era\_orig", | string | Concatenated ET file (no smoothing) |
+| etfileavg | etfileavg="./text\_files/traj\_et\_era\_avg", | string | Concatenated ET file (post smoothing)|
+| basin | basin=1, | int | Only calculate CPS values for specific basin (set to <0 for all basins) |
+| latmin | latmin=-80.0, | float | Minimum latitude to extract from gridded data |
+| latmax | latmax=80.0, | float | Maximum latitude to extract from gridded data |
+| lonmin | lonmin=-180.0, | float | Minimum longitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
+| lonmax | lonmax=360.0, | float | Maximum latitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
+| hrintvl | hrintvl=6.0, | float | Time interval (hours) between data points |
+| trajinds | trajinds=0,1,2,3, | integer (4) | Indices in a TE-formatted track file corresponding to lon, lat, wind, pres |
+
+<a name="namelistfoot1">1</a>: If using global data, -180. -> 360. allows for all lon orderings. For more regional definitions, this will be specific to the gridded dataset coordinate conventions.
 
 ### 1.) Generate TC tracks
 A TC tracker (such as [TempestExtremes](https://github.com/ClimateGlobalChange/tempestextremes) or TECA) needs to be used to generate/initialize TC tracks. This file will be shorthanded `${TCTRAJ}` in this README.
@@ -51,11 +75,13 @@ Sample scripts for generating TC trajectories using TempestExtremes are found in
 **NOTE:** ExTraTrack by default wraps over the top of the TempestExtremes track format. Files are ASCII containing multiple trajectories. They can be delimited by tabs or spaces. If you use a different tracking software, you must either reformat your data to match this format or edit the trajectory interface layer in ExTraTrack. A sample supported trajectory is in the sample data file linked above.
 
 each trajectory consists of a header line...
+
 ```
 start NUMOBS STYYYY STMM STDD STHH
 ```
 
 each line of the trajectory (there should be NOBS of them) are...
+
 ```
 IX JY LON LAT WIND PRES VAR1 VAR2 ... VARN PSL YYYY MM DD HH
 ```
@@ -82,7 +108,8 @@ More information is below.
 
 Variables must be in regular lat-lon format with dimensions ntime x nlev x nlat x nlon.
 
-REQUIRED DATA: Currently, variables/names needed by `reanalysis_et_cyclone_traj.ncl` are:
+REQUIRED DATA: Currently, variables/names needed by ExTraTrack are:
+
 1. PSL (sea level pressure in Pa)
 2. UBOT (lowest model level U wind, in m/s)
 3. VBOT (lowest model level V wind, in m/s)
@@ -107,42 +134,52 @@ Users may modify the data ingestion within `ExTraTrack.ncl` but only the above f
 
 A sorted (from oldest data date to newest), one-per-line list of absolute paths to the processed netCDF files must be generated. The simplest way to do so is to use UNIX's `find` utility. For example, if I have all of my files stored under `/home/$LOGNAME/mydata/` in an arbitrary directory structure, I can use...
 
-`find /home/$LOGNAME/mydata/ -name "*.nc" | sort -n > myfilelist.txt`
+```
+find /home/$LOGNAME/mydata/ -name "*.nc" | sort -n > myfilelist.txt
+```
 
 This filelist will need to be referenced in the namelist described below.
 
-### 4.) Calculate CPS parameters with ExTraTrack
+### 4.) (Optional) Build lookup table
+
+To reduce the memory load associated with continually accessing all files listed in the filelist, ExTraTrack builds a lookup table which contains information about where various timestamps live in the directory tree. This can be done at runtime when ExTraTrack is invoked (next step). However, for many files or higher-resolution data, it is preferable to generate this static lookup table once and have ExTraTrack reuse it during each invokation (when parallelized, for example).
+
+This can be done by running:
+
+```
+$> ncl et_build_lookup.ncl 'nlfile="nl.myconfig"'
+```
+
+Which will create a NetCDF file in the main ExTraTrack directory named `lookup_00000.nc`.
+
+The default naming convention includes an identifier `00000` in the filename, but this can be modified by passing in a unique string on the command line.
+
+```
+$> ncl et_build_lookup.ncl 'nlfile="nl.myconfig"' 'UQSTR="'${SOME_UNIQUE_IDENTIFIER}'"'
+```
+
+which will produce `lookup_${SOME_UNIQUE_IDENTIFIER}.nc`
+
+This is useful if invoking multiple versions of ExTraTrack at the same time. A common strategy is to define a unique identifier as a number based on time in UNIX epoch. Ex: ```SOME_UNIQUE_IDENTIFIER =`date +%s%N` ```
+
+
+### 5.) Calculate CPS parameters with ExTraTrack
 
 The individual trajectories with B, Vut, and Vlt can be calculated by invoking
 
-```$> ncl ExTraTrack.ncl```
+```
+$> ncl ExTraTrack.ncl
+```
 
-**NOTE:** The code requires reading a namelist, the default option is to read the file titled `namelist` from the same directory as ExTraTrack.
+There are three command line configurations.
 
-`namelist` defines an external namelist with specific configuration options. A sample namelist is included in the example tarball. Keys must be defined as `VAR="TEXT",` when a string or `VAR=999.9,` when numeric.
+```
+$> ncl ExTraTrack.ncl 'nlfile="nl.myconfig"' 'UQSTR="'${SOME_UNIQUE_IDENTIFIER}'"' 'year_min_str="'${YYYY}'"' 'year_max_str="'${YYYY}'"'
+```
 
-| Namelist Variable | Namelist sample | Type | Description |
-| --- | --- | --- | --- |
-| type | type="era", | string | Shortcode describing particular dataset |
-| tfile | tfile="./tc-tracking/tc\_traj", | string | Path to `${TCTRAJ}`. Can be relative, but safer as full path. |
-| filelist | filelist="./filelist.txt", | string | Path to gridded netCDF files, one per line and chronologically sorted (see step 4)|
-| etfileori | etfileori="./text\_files/traj\_et\_era\_orig", | string | Concatenated ET file (no smoothing) |
-| etfileavg | etfileavg="./text\_files/traj\_et\_era\_avg", | string | Concatenated ET file (post smoothing)|
-| basin | basin=1, | int | Only calculate CPS values for specific basin (set to <0 for all basins) |
-| latmin | latmin=-80.0, | float | Minimum latitude to extract from gridded data |
-| latmax | latmax=80.0, | float | Maximum latitude to extract from gridded data |
-| lonmin | lonmin=-180.0, | float | Minimum longitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
-| lonmax | lonmax=360.0, | float | Maximum latitude to extract from gridded data<sup>[1](#namelistfoot1)</sup> |
-| hrintvl | hrintvl=6.0, | float | Time interval (hours) between data points |
-| trajinds | trajinds=0,1,2,3, | integer (4) | Indices in a TE-formatted track file corresponding to lon, lat, wind, pres |
+One, overrides the default namelist by specifying a user-defined namelist as `nlfile`. The second, specifies the unique identifier from the static lookup table (if using) and must match for ExTraTrack to find the correct file. Note, if the unique identifier is not specified, it also defaults to the `00000` default from `et_build_lookup.ncl`.
 
-<a name="namelistfoot1">1</a>: If using global data, -180. -> 360. allows for all lon orderings. For more regional definitions, this will be specific to the gridded dataset coordinate conventions.
-
-There are two command line configurations.
-
-```$> ncl ExTraTrack.ncl 'nlfile="nl.myconfig"' 'year_min_str="'${YYYY}'"' 'year_max_str="'${YYYY}'"'```
-
-One, overrides the default namelist by specifying a user-defined namelist as `nlfile`. The second, `year_min_str` and `year_max_str` define the year boundaries for that particular instance of ExTraTrack. It can be used to parallelize the code (i.e., for a 20 year dataset you could spawn 20 single-core jobs doing 1984-1984, 1985-1985, and so on).
+The third, `year_min_str` and `year_max_str` define the year boundaries for that particular instance of ExTraTrack. It can be used to parallelize the code (i.e., for a 20 year dataset you could spawn 20 single-core jobs doing 1984-1984, 1985-1985, and so on).
 
 Simply, the code reads in the above TC trajectories and searches gridded data matching the period of analysis. During the times a TC trajectory exists, it calculates Hart's Vut, Vlt, and B.
 
@@ -151,6 +188,7 @@ Following the termination of a defined warm-core TC trajectory, the code continu
 `ExTraTrack.ncl ` will output new, storm-by-storm trajectory files in `./text_files/` with the prefix `tmp_TYPE_XXX`. Timing files are also output as `timing_TYPE_XXX` in `./timing_files/`
 
 Each storm trajectory will look like...
+
 ```
 start   051  1980      08    03    18    001
    -57.66   12.98   1006.68   14.6   -999.00   -999.00   -999.00   -999.00   -999.00   1980   8   3  18
@@ -160,11 +198,13 @@ start   051  1980      08    03    18    001
 ```
 
 header format:
+
 ```
 start NUMOBS STYYYY STMM STDD STHH STORMID
 ```
 
 each line (NOBS of them) will be...
+
 ```
 LON LAT PSL BOT_WINDMAG DIST ANG B VLT VUT YYYY MM DD HH
 ```
@@ -181,21 +221,30 @@ VLT          ; lower troposphere thermal wind (Hart 2003)
 VUT          ; upper troposphere thermal wind (Hart 2003)
 ```
 
-### 5.) Concatenate, postprocess, and analyze statistics
+### 6.) Concatenate, postprocess, and analyze statistics
 
 **NOTE:** All NCL files beginning with `et_` call the default namelist but have an optional command line arg of `nlfile` as with ExTraTrack that allows for the user to specify a different namelist file.
 
 In `./text_files/` the individual `tmp_XXX_NNN.txt` files need to be concatenated into a singlular traj file. This can be done quickly by invoking
-```$> ncl et_concat_trajs.ncl```
+
+```
+$> ncl et_concat_trajs.ncl 'nlfile="nl.myconfig"'
+```
 
 You can then run
-```$> ncl et_avg_text.ncl```
+
+```
+$> ncl et_avg_text.ncl 'nlfile="nl.myconfig"'
+```
 ... to produce a "smoothed" ET trajectory file from `./text_files/${ETCTRAJ_ORIG}`.
 Settings are contained in the user options at the top of the script.
 This produces a file `./text_files/${ETCTRAJ_AVG}`.
 
 Statistics can be calculated by running:
-```$> ncl et_yearly_clim.ncl```
+
+```
+$> ncl et_yearly_clim.ncl 'nlfile="nl.myconfig"'
+```
 
 This will produce a series of files in `./climatology_files/`
 Here we assume ERA-interim 1980-2002 (as in Zarzycki et al., 2017).
