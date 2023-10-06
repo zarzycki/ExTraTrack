@@ -708,6 +708,12 @@ do jtc = 0,ntc-1
       B(i) = -991.9
       Vlt(i) = -991.9
       Vut(i) = -991.9
+    else if (nrows .eq. 1) then
+      print("Only a single row, don't calculate B or Vlt")
+      ang(i) = 0.
+      B(i) = -992.9
+      Vlt(i) = -992.9
+      Vut(i) = -992.9
     else
       ;========================================================
       ; Set options to pass into CPS calcs
@@ -735,6 +741,7 @@ do jtc = 0,ntc-1
       Vlt(i) = rtn_tmp(0)
       Vut(i) = rtn_tmp(1)
       delete(rtn_tmp)
+    end if
     end if
 
     ;========================================================
