@@ -132,17 +132,25 @@ Users may modify the data ingestion within `ExTraTrack.ncl` but only the above f
 
 ### 3.) Generate a list of NetCDF files containing spatiotemporal information used in storm tracking and CPS calculations
 
-A sorted (from oldest data date to newest), one-per-line list of absolute paths to the processed netCDF files must be generated. The simplest way to do so is to use UNIX's `find` utility. For example, if I have all of my files stored under `/home/$LOGNAME/mydata/` in an arbitrary directory structure, I can use...
+A sorted (from oldest data date to newest), one-per-line list of absolute paths to the processed netCDF files must be generated. The simplest way to do so is to use UNIX's `find` utility. There is a Bash tool in `et-tracker/filelists/` meant to assist with this.
 
 ```
-find /home/$LOGNAME/mydata/ -name "*.nc" | sort -n > myfilelist.txt
+./gen-files.sh -o $FILELIST_TXT -d $PATH_TO_NC_FILES
 ```
+
+Where `-o` specifies the output text file and `-d` specifies the top-level path where the NetCDF files are stored. Note that the code will include all NetCDF files with the extension `.nc` below that top-level directory and sort alphabetically, so organize appropriately. There is an additional option, `-p` which provides more control over what files are kept by the tool by allowing a user to pass a specified glob pattern. For example:
+
+```
+./gen-files.sh -o files.ERA5.txt -d ~/scratch/h1files/ERA5v3/ -p "*.h1.2015*.nc4"
+```
+
+will create an alphanumerically-sorted filelist called files.ERA5.txt by searching `~/scratch/h1files/ERA5v3/` and all it's subfolders for files that can be found with the pattern `*.h1.2015*.nc4`.
 
 This filelist will need to be referenced in the namelist described below.
 
 ### 4.) (Optional) Build lookup table
 
-To reduce the memory load associated with continually accessing all files listed in the filelist, ExTraTrack builds a lookup table which contains information about where various timestamps live in the directory tree. This can be done at runtime when ExTraTrack is invoked (next step). However, for many files or higher-resolution data, it is preferable to generate this static lookup table once and have ExTraTrack reuse it during each invokation (when parallelized, for example).
+To reduce the memory load associated with continually accessing all files listed in the filelist, ExTraTrack builds a lookup table which contains information about where various timestamps live in the directory tree. This can be done at runtime when ExTraTrack is invoked (next step). **However, for many files or higher-resolution data, it is preferable to generate this static lookup table once and have ExTraTrack reuse it during each invokation** (when parallelized, for example).
 
 This can be done by running:
 
