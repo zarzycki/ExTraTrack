@@ -194,9 +194,18 @@ do jj = 0,nstorms_tot-1
   Vut_avg = Vut_sub
 
   ; Now average excluding the 0th index, which has bad data
-  B_avg(1::) = runave_Wrap(B_sub(1::),nave,opt)
-  Vlt_avg(1::) = runave_Wrap(Vlt_sub(1::),nave,opt)
-  Vut_avg(1::) = runave_Wrap(Vut_sub(1::),nave,opt)
+  if (dur .gt. nave) then
+    print("... averaging")
+  else
+    print("... reducing average from "+nave+" to "+(dur - 1))
+    nave = dur - 1
+  end if
+
+  if (dur .ge. 2)
+    B_avg(1::) = runave_Wrap(B_sub(1::),nave,opt)
+    Vlt_avg(1::) = runave_Wrap(Vlt_sub(1::),nave,opt)
+    Vut_avg(1::) = runave_Wrap(Vut_sub(1::),nave,opt)
+  end if
 
   delete([/nave,opt,B_sub,Vlt_sub,Vut_sub/])
 
