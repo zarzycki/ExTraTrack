@@ -24,16 +24,16 @@ begin
   lon1r = lon1*d2r
   lat2r = lat2*d2r
   lon2r = lon2*d2r
-  
+
 ; compute angle of motion based on two lat/lon points
   ang_tmp = r2d*atan2(sin((lon2r-lon1r))*cos(lat2r), \
-                  cos(lat1r)*sin(lat2r) - sin(lat1r)*cos(lat2r)*cos(lat2r-lat1r))
+                  cos(lat1r)*sin(lat2r) - sin(lat1r)*cos(lat2r)*cos(lon2r-lon1r))
 
 ; convert angles from (-180 to +180) to (0 to 360)
   ang = mod(ang_tmp + 360.,360.)
 
   delete([/pi, d2r, r2d, lat1r, lon1r, lat2r, lon2r, ang_tmp/])
-               
+
   return(ang)
-  
+
 end
